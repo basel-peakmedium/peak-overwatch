@@ -4,11 +4,19 @@
   "public": true,
   "builds": [
     {
+      "src": "api/*.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "*.html",
       "use": "@vercel/static"
     }
   ],
   "routes": [
+    {
+      "src": "/api/waitlist",
+      "dest": "/api/waitlist.js"
+    },
     {
       "src": "/",
       "dest": "/index.html"

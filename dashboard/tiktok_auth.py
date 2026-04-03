@@ -24,9 +24,9 @@ SCOPES = [
 ]
 
 # Create Blueprint
-tiktok_bp = Blueprint('tiktok', __name__, url_prefix='/tiktok')
+tiktok_bp = Blueprint('tiktok', __name__)
 
-@tiktok_bp.route('/login')
+@tiktok_bp.route('/tiktok/login')
 def tiktok_login():
     """Redirect user to TikTok OAuth authorization page"""
     
@@ -160,7 +160,7 @@ def refresh_access_token(refresh_token):
             'error_description': str(e)
         }
 
-@tiktok_bp.route('/logout')
+@tiktok_bp.route('/tiktok/logout')
 def logout():
     """Clear TikTok session data"""
     session.pop('tiktok_access_token', None)
@@ -169,7 +169,7 @@ def logout():
     session.pop('oauth_state', None)
     return redirect('/')
 
-@tiktok_bp.route('/user')
+@tiktok_bp.route('/tiktok/user')
 def get_current_user():
     """Get current logged in user info"""
     if 'tiktok_user' in session:
