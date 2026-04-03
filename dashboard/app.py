@@ -7,6 +7,7 @@ For deployment to app.peakoverwatch.com
 from flask import Flask, render_template_string, session, redirect, url_for
 import os
 from tiktok_auth import tiktok_bp
+from tiktok_data import data_bp
 
 app = Flask(__name__)
 
@@ -14,8 +15,9 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['ENV'] = os.environ.get('FLASK_ENV', 'production')
 
-# Register TikTok OAuth Blueprint
+# Register TikTok Blueprints
 app.register_blueprint(tiktok_bp)
+app.register_blueprint(data_bp)
 
 @app.route('/')
 @app.route('/dashboard')
@@ -31,15 +33,15 @@ def user_profile():
     
     # In production, this would fetch actual TikTok data
     # For now, return basic profile page
-    profile_html = f'''
+    profile_html = '''
     <!DOCTYPE html>
     <html>
     <head>
         <title>Profile - Peak Overwatch</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
         <style>
-            body {{ background: #0f172a; color: #f1f5f9; padding: 20px; }}
-            .profile-card {{ background: #1e293b; border-radius: 12px; padding: 2rem; }}
+            body { background: #0f172a; color: #f1f5f9; padding: 20px; }
+            .profile-card { background: #1e293b; border-radius: 12px; padding: 2rem; }
         </style>
     </head>
     <body>
@@ -50,10 +52,10 @@ def user_profile():
         <div class="profile-card">
             <h2>TikTok Profile</h2>
             <div class="mt-3">
-                <p><strong>Display Name:</strong> {session['tiktok_user'].get('display_name', 'N/A')}</p>
-                <p><strong>Open ID:</strong> {session['tiktok_user'].get('open_id', 'N/A')}</p>
+                <p><strong>Display Name:</strong> {{ session['tiktok_user'].get('display_name', 'N/A') }}</p>
+                <p><strong>Open ID:</strong> {{ session['tiktok_user'].get('open_id', 'N/A') }}</p>
                 {% if session['tiktok_user'].get('avatar_url') %}
-                <img src="{session['tiktok_user']['avatar_url']}" alt="Avatar" width="100" class="rounded-circle">
+                <img src="{{ session['tiktok_user']['avatar_url'] }}" alt="Avatar" width="100" class="rounded-circle">
                 {% endif %}
             </div>
             <div class="mt-4">
@@ -230,6 +232,8 @@ HTML_TEMPLATE = '''
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="/tiktok/user">Profile</a></li>
+                        <li><a class="dropdown-item" href="/tiktok/videos">My Videos</a></li>
+                        <li><a class="dropdown-item" href="/tiktok/stats">Video Stats</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item text-danger" href="/tiktok/logout">Logout</a></li>
                     </ul>
