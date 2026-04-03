@@ -4,14 +4,66 @@ Peak Overwatch Dashboard - Production Ready
 For deployment to app.peakoverwatch.com
 """
 
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, session, redirect, url_for
 import os
+from tiktok_auth import tiktok_bp
 
 app = Flask(__name__)
 
 # Production settings
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['ENV'] = os.environ.get('FLASK_ENV', 'production')
+
+# Register TikTok OAuth Blueprint
+app.register_blueprint(tiktok_bp)
+
+@app.route('/')
+@app.route('/dashboard')
+def dashboard():
+    """Main dashboard route"""
+    return render_template_string(HTML_TEMPLATE)
+
+@app.route('/profile')
+def user_profile():
+    """User profile page showing TikTok data"""
+    if 'tiktok_user' not in session:
+        return redirect('/tiktok/login')
+    
+    # In production, this would fetch actual TikTok data
+    # For now, return basic profile page
+    profile_html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Profile - Peak Overwatch</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+            body {{ background: #0f172a; color: #f1f5f9; padding: 20px; }}
+            .profile-card {{ background: #1e293b; border-radius: 12px; padding: 2rem; }}
+        </style>
+    </head>
+    <body>
+        <nav class="mb-4">
+            <a href="/dashboard" class="btn btn-outline-light btn-sm">← Back to Dashboard</a>
+        </nav>
+        
+        <div class="profile-card">
+            <h2>TikTok Profile</h2>
+            <div class="mt-3">
+                <p><strong>Display Name:</strong> {session['tiktok_user'].get('display_name', 'N/A')}</p>
+                <p><strong>Open ID:</strong> {session['tiktok_user'].get('open_id', 'N/A')}</p>
+                {% if session['tiktok_user'].get('avatar_url') %}
+                <img src="{session['tiktok_user']['avatar_url']}" alt="Avatar" width="100" class="rounded-circle">
+                {% endif %}
+            </div>
+            <div class="mt-4">
+                <a href="/tiktok/logout" class="btn btn-danger">Logout</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+    return render_template_string(profile_html)
 
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
@@ -170,6 +222,23 @@ HTML_TEMPLATE = '''
             </a>
             <div class="d-flex align-items-center">
                 <span class="badge bg-dark me-3">v1.0</span>
+                {% if session.get('tiktok_user') %}
+                <div class="dropdown me-3">
+                    <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle me-1"></i>
+                        {{ session.tiktok_user.get('display_name', 'User') }}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="/tiktok/user">Profile</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="/tiktok/logout">Logout</a></li>
+                    </ul>
+                </div>
+                {% else %}
+                <a href="/tiktok/login" class="btn btn-sm btn-outline-light me-3">
+                    <i class="bi bi-tiktok me-1"></i>Connect TikTok
+                </a>
+                {% endif %}
                 <a href="https://peakoverwatch.com" class="btn btn-sm btn-outline-light">
                     <i class="bi bi-house me-1"></i>Home
                 </a>
