@@ -12,19 +12,19 @@ peak-overwatch/
 
 ## Current Dashboard Status
 
-The dashboard repo went through several rapid prototype phases. The current
-maintained runnable entrypoint is:
+The repo went through a lot of rapid prototype branching. The single maintained
+runnable dashboard entrypoint is now:
 
-- `dashboard/phase4_simple.py`
+- `dashboard/app_production_final.py`
 
-That file currently contains the best working combination of:
-- phase 1 UI direction
-- phase 2 auth flow
-- phase 3 settings/history flow
-- phase 4 in-app alert prototype
+That file is the best current working combination of:
+- upgraded dashboard UI
+- auth flow
+- health check / production-oriented app shell
+- real-time in-app alerts
 
-Older milestone files that became stale or syntactically broken were reduced to
-archive stubs so the repository stays honest and healthy.
+Older milestone files and broken prototype forks are retained only as archived
+stubs where useful for history, not as active app paths.
 
 ## Deployment
 
@@ -35,7 +35,7 @@ archive stubs so the repository stays honest and healthy.
 ### Dashboard
 - Folder: `dashboard/`
 - URL: `https://app.peakoverwatch.com`
-- Procfile entry: `gunicorn phase4_simple:app`
+- Procfile entry: `gunicorn app_production_final:app`
 
 ## Local Development
 
@@ -44,11 +44,11 @@ cd dashboard
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python3 phase4_simple.py
+python3 app_production_final.py
 ```
 
 Open:
-- `http://localhost:5006`
+- `http://localhost:5008`
 
 Demo account:
 - `demo@peakoverwatch.com`
@@ -56,7 +56,7 @@ Demo account:
 
 ## Important Reality Check
 
-This dashboard is still a prototype. The app shell and flows are real, but much of
+This is still a prototype. The app shell and monitoring UX are real, but much of
 the metrics/alerting logic is still mock data until full TikTok API-backed data is
 wired in.
 
