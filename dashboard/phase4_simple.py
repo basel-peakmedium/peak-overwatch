@@ -7,14 +7,14 @@ Real-time alerts and notification system
 from flask import Flask, render_template_string, redirect, request, jsonify, make_response
 from flask_socketio import SocketIO, emit
 import os
-import json
-from datetime import datetime, timedelta
+from datetime import datetime
 import random
 import bcrypt
 import secrets
 from threading import Thread, Lock
 import time
 from functools import wraps
+from storage import JsonStore, PersistedUser, SESSION_LIFETIME
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-phase4')
@@ -24,36 +24,33 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
 socketio = SocketIO(app, cors_allowed_origins=os.environ.get('CORS_ALLOWED_ORIGINS', '*'))
 
-# Simple in-memory storage
+# Simple persisted storage
+store = JsonStore()
 users = {}
-sessions = {}
-alerts = {}
+sessions = store.get_sessions()
+alerts = store.get_alerts()
 lock = Lock()
-SESSION_LIFETIME = timedelta(days=7)
 
-class User:
-    def __init__(self, user_id, email, password_hash, name=None, company=None):
-        self.id = user_id
-        self.email = email
-        self.password_hash = password_hash
-        self.name = name
-        self.company = company
-        self.socket_id = None
-        self.settings = {
-            'alert_email': True,
-            'alert_notifications': True,
-            'fyp_threshold_good': 80,
-            'fyp_threshold_warn': 70,
-            'fyp_threshold_critical': 60
-        }
-        self.profiles = [
-            {'id': 1, 'username': 'ourviralpicks', 'niche': 'Home & Lifestyle', 'fyp_score': 95, 'last_fyp': 95},
-            {'id': 2, 'username': 'homegadgetfinds', 'niche': 'Gadgets & Tech', 'fyp_score': 88, 'last_fyp': 88},
-            {'id': 3, 'username': 'beautytrends', 'niche': 'Beauty & Skincare', 'fyp_score': 92, 'last_fyp': 92}
-        ]
-    
+class User(PersistedUser):
+    @classmethod
+    def from_dict(cls, data):
+        base = PersistedUser.from_dict(data)
+        return cls(
+            id=base.id,
+            email=base.email,
+            password_hash=base.password_hash,
+            name=base.name,
+            company=base.company,
+            settings=base.settings,
+            profiles=base.profiles,
+            socket_id=base.socket_id,
+        )
+
     def verify_password(self, password):
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+
+    def persist(self):
+        store.upsert_user(self)
     
     def add_alert(self, alert_type, title, message, level='info'):
         alert_id = secrets.token_urlsafe(8)
@@ -68,13 +65,14 @@ class User:
         }
         
         with lock:
-            if self.id not in alerts:
-                alerts[self.id] = []
-            alerts[self.id].append(alert)
+            user_key = str(self.id)
+            if user_key not in alerts:
+                alerts[user_key] = []
+            alerts[user_key].append(alert)
             
-            # Keep only last 50 alerts
-            if len(alerts[self.id]) > 50:
-                alerts[self.id] = alerts[self.id][-50:]
+            if len(alerts[user_key]) > 50:
+                alerts[user_key] = alerts[user_key][-50:]
+            store.replace_alerts(alerts)
         
         # Send via WebSocket if connected
         if self.socket_id:
@@ -84,19 +82,44 @@ class User:
         return alert
     
     def get_unread_alerts(self):
-        return [a for a in alerts.get(self.id, []) if not a['is_read']]
+        return [a for a in alerts.get(str(self.id), []) if not a['is_read']]
     
     def mark_alert_read(self, alert_id):
         with lock:
-            for alert in alerts.get(self.id, []):
+            for alert in alerts.get(str(self.id), []):
                 if alert['id'] == alert_id:
                     alert['is_read'] = True
+                    store.replace_alerts(alerts)
                     return True
         return False
 
-# Create demo user
+for email, payload in store.load().get('users', {}).items():
+    users[email] = User.from_dict(payload)
+
+# Ensure demo user exists
 demo_hash = bcrypt.hashpw('password123'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-users['demo@peakoverwatch.com'] = User(1, 'demo@peakoverwatch.com', demo_hash, 'Demo User', 'Peak Medium')
+if 'demo@peakoverwatch.com' not in users:
+    demo_user = User(
+        id=1,
+        email='demo@peakoverwatch.com',
+        password_hash=demo_hash,
+        name='Demo User',
+        company='Peak Medium',
+        settings={
+            'alert_email': True,
+            'alert_notifications': True,
+            'fyp_threshold_good': 80,
+            'fyp_threshold_warn': 70,
+            'fyp_threshold_critical': 60,
+        },
+        profiles=[
+            {'id': 1, 'username': 'ourviralpicks', 'niche': 'Home & Lifestyle', 'fyp_score': 95, 'last_fyp': 95},
+            {'id': 2, 'username': 'homegadgetfinds', 'niche': 'Gadgets & Tech', 'fyp_score': 88, 'last_fyp': 88},
+            {'id': 3, 'username': 'beautytrends', 'niche': 'Beauty & Skincare', 'fyp_score': 92, 'last_fyp': 92},
+        ],
+    )
+    demo_user.persist()
+    users['demo@peakoverwatch.com'] = demo_user
 
 # WebSocket handlers
 @socketio.on('connect')
@@ -174,6 +197,7 @@ def monitor_accounts():
                         # Update profile
                         profile['last_fyp'] = new_score
                         profile['fyp_score'] = new_score
+                        user.persist()
             
             # Sleep before next check
             time.sleep(45)  # Check every 45 seconds
@@ -195,6 +219,7 @@ def login_required(f):
             return redirect('/login')
         if session['expires'] < datetime.now():
             del sessions[token]
+            store.delete_session(token)
             response = make_response(redirect('/login'))
             response.delete_cookie('session_token')
             return response
@@ -276,7 +301,7 @@ def api_login():
         return jsonify({'success': False, 'message': 'Invalid credentials'})
     
     token = secrets.token_urlsafe(32)
-    sessions[token] = {'user_id': user.id, 'expires': datetime.now() + SESSION_LIFETIME}
+    sessions[token] = store.set_session(token, user.id)
     
     resp = jsonify({'success': True})
     resp.set_cookie(
@@ -294,6 +319,7 @@ def logout():
     token = request.cookies.get('session_token')
     if token in sessions:
         del sessions[token]
+        store.delete_session(token)
     resp = make_response(redirect('/login'))
     resp.delete_cookie('session_token')
     return resp
@@ -596,7 +622,7 @@ def dashboard():
 @login_required
 def alerts_page():
     user = request.user
-    user_alerts = alerts.get(user.id, [])
+    user_alerts = alerts.get(str(user.id), [])
     
     return f'''
     <!DOCTYPE html>

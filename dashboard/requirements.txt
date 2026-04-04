@@ -5,3 +5,6 @@ requests==2.32.3
 Flask-SocketIO==5.6.1
 bcrypt==4.3.0
 simple-websocket==1.1.0
+psycopg2-binary==2.9.10
+python-jose==3.5.0
+redis==6.4.0
