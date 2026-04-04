@@ -94,7 +94,8 @@ class User:
         return False
 
 # Demo user
-demo_hash = bcrypt.hashpw('password123'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+# Pre-baked hash (rounds=6) — avoids slow bcrypt on startup/login on low-CPU hosts
+demo_hash = '$2b$06$8y4VDcAyr491m32cEzVB7./dwMSQ4AzmDqKxjYACf1AjWWH4PMCYa'
 users['demo@peakoverwatch.com'] = User(1, 'demo@peakoverwatch.com', demo_hash, 'Demo User', 'Peak Medium')
 
 # Monitor
