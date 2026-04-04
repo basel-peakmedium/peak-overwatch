@@ -29,6 +29,7 @@ users = {}
 sessions = {}
 alerts = {}
 lock = Lock()
+SESSION_LIFETIME = timedelta(days=7)
 
 class User:
     def __init__(self, user_id, email, password_hash, name=None, company=None):
@@ -189,9 +190,15 @@ def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         token = request.cookies.get('session_token')
-        if not token or token not in sessions:
+        session = sessions.get(token) if token else None
+        if not token or not session:
             return redirect('/login')
-        user_id = sessions[token]['user_id']
+        if session['expires'] < datetime.now():
+            del sessions[token]
+            response = make_response(redirect('/login'))
+            response.delete_cookie('session_token')
+            return response
+        user_id = session['user_id']
         user = next((u for u in users.values() if u.id == user_id), None)
         if not user:
             response = make_response(redirect('/login'))
@@ -269,7 +276,7 @@ def api_login():
         return jsonify({'success': False, 'message': 'Invalid credentials'})
     
     token = secrets.token_urlsafe(32)
-    sessions[token] = {'user_id': user.id, 'expires': datetime.now() + timedelta(days=7)}
+    sessions[token] = {'user_id': user.id, 'expires': datetime.now() + SESSION_LIFETIME}
     
     resp = jsonify({'success': True})
     resp.set_cookie(
@@ -278,7 +285,7 @@ def api_login():
         httponly=True,
         secure=app.config['SESSION_COOKIE_SECURE'],
         samesite=app.config['SESSION_COOKIE_SAMESITE'],
-        max_age=7*24*60*60
+        max_age=int(SESSION_LIFETIME.total_seconds())
     )
     return resp
 
@@ -474,6 +481,22 @@ def dashboard():
                     alertEl.style.opacity = '0.5';
                     setTimeout(() => alertEl.remove(), 300);
                 }
+
+                const badge = document.querySelector('.notification-badge');
+                if (badge) {
+                    const currentBadgeCount = Math.max((parseInt(badge.textContent) || 0) - 1, 0);
+                    if (currentBadgeCount === 0) {
+                        badge.remove();
+                    } else {
+                        badge.textContent = currentBadgeCount;
+                    }
+                }
+
+                const metric = document.querySelector('.metric-card:nth-child(3) .metric-value');
+                if (metric) {
+                    const currentMetricCount = Math.max((parseInt(metric.textContent) || 0) - 1, 0);
+                    metric.textContent = currentMetricCount;
+                }
             });
             
             // Helper functions
@@ -530,17 +553,21 @@ def dashboard():
             }
             
             function updateAlertCount() {
-                const badge = document.querySelector('.notification-badge');
-                if (badge) {
-                    const current = parseInt(badge.textContent) || 0;
-                    badge.textContent = current + 1;
+                let badge = document.querySelector('.notification-badge');
+                if (!badge) {
+                    const alertsLink = document.querySelector('a[href="/alerts"]');
+                    badge = document.createElement('span');
+                    badge.className = 'notification-badge';
+                    badge.textContent = '0';
+                    alertsLink.appendChild(badge);
                 }
+                const currentBadgeCount = parseInt(badge.textContent) || 0;
+                badge.textContent = currentBadgeCount + 1;
                 
-                // Update metric card
                 const metric = document.querySelector('.metric-card:nth-child(3) .metric-value');
                 if (metric) {
-                    const current = parseInt(metric.textContent) || 0;
-                    metric.textContent = current + 1;
+                    const currentMetricCount = parseInt(metric.textContent) || 0;
+                    metric.textContent = currentMetricCount + 1;
                 }
             }
             
