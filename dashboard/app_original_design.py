@@ -93,7 +93,8 @@ class User:
         return False
 
 # Create demo user
-demo_hash = bcrypt.hashpw('password123'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+# Pre-baked hash for demo account (rounds=6 for fast auth on low-CPU hosts)
+demo_hash = '$2b$06$8y4VDcAyr491m32cEzVB7./dwMSQ4AzmDqKxjYACf1AjWWH4PMCYa'
 users['demo@peakoverwatch.com'] = User(1, 'demo@peakoverwatch.com', demo_hash, 'Demo User', 'Peak Medium')
 
 # Monitoring service
