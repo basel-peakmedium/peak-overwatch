@@ -86,8 +86,9 @@ def render_video_page(user_info, videos):
     total_videos = len(videos)
     total_views = sum(video.get('view_count', 0) for video in videos)
     total_likes = sum(video.get('like_count', 0) for video in videos)
-    
-    html = f'''
+
+    # Use render_template_string — NO f-string here, so Jinja2 syntax is safe
+    html_template = '''
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -97,44 +98,44 @@ def render_video_page(user_info, videos):
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
         <style>
-            body {{ background: #0f172a; color: #f1f5f9; padding: 20px; }}
-            .video-card {{ 
-                background: #1e293b; 
-                border: 1px solid #334155; 
-                border-radius: 12px; 
+            body { background: #0f172a; color: #f1f5f9; padding: 20px; }
+            .video-card {
+                background: #1e293b;
+                border: 1px solid #334155;
+                border-radius: 12px;
                 padding: 1rem;
                 margin-bottom: 1rem;
                 transition: transform 0.2s;
-            }}
-            .video-card:hover {{ transform: translateY(-2px); }}
-            .video-stats {{ 
-                display: flex; 
-                gap: 1rem; 
+            }
+            .video-card:hover { transform: translateY(-2px); }
+            .video-stats {
+                display: flex;
+                gap: 1rem;
                 margin-top: 0.5rem;
                 font-size: 0.9rem;
                 color: #94a3b8;
-            }}
-            .stat-item {{ display: flex; align-items: center; gap: 0.25rem; }}
-            .profile-header {{ 
+            }
+            .stat-item { display: flex; align-items: center; gap: 0.25rem; }
+            .profile-header {
                 background: linear-gradient(135deg, #1e293b, #334155);
                 border-radius: 12px;
                 padding: 2rem;
                 margin-bottom: 2rem;
-            }}
-            .metric-badge {{
+            }
+            .metric-badge {
                 background: linear-gradient(135deg, #8b5cf6, #7c3aed);
                 color: white;
                 padding: 0.5rem 1rem;
                 border-radius: 20px;
                 font-weight: 600;
-            }}
-            .cover-image {{
+            }
+            .cover-image {
                 width: 100%;
                 height: 180px;
                 object-fit: cover;
                 border-radius: 8px;
                 margin-bottom: 1rem;
-            }}
+            }
         </style>
     </head>
     <body>
@@ -160,7 +161,7 @@ def render_video_page(user_info, videos):
                 <div class="row align-items-center">
                     <div class="col-auto">
                         {% if user_info.get('avatar_url') %}
-                        <img src="{user_info['avatar_url']}" alt="Avatar" width="80" height="80" class="rounded-circle">
+                        <img src="{{ user_info.get('avatar_url') }}" alt="Avatar" width="80" height="80" class="rounded-circle">
                         {% else %}
                         <div class="rounded-circle bg-dark d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
                             <i class="bi bi-person-fill" style="font-size: 2rem;"></i>
@@ -168,21 +169,21 @@ def render_video_page(user_info, videos):
                         {% endif %}
                     </div>
                     <div class="col">
-                        <h2 class="mb-1">{user_info.get('display_name', 'TikTok User')}</h2>
-                        <p class="text-secondary mb-0">@{user_info.get('open_id', 'user')[:15]}...</p>
+                        <h2 class="mb-1">{{ user_info.get('display_name', 'TikTok User') }}</h2>
+                        <p class="text-secondary mb-0">@{{ user_info.get('open_id', 'user')[:15] }}...</p>
                     </div>
                     <div class="col-auto">
                         <div class="d-flex gap-3">
                             <div class="text-center">
-                                <div class="metric-badge">{total_videos}</div>
+                                <div class="metric-badge">{{ total_videos }}</div>
                                 <div class="small mt-1">Videos</div>
                             </div>
                             <div class="text-center">
-                                <div class="metric-badge">{format_number(total_views)}</div>
+                                <div class="metric-badge">{{ total_views_fmt }}</div>
                                 <div class="small mt-1">Total Views</div>
                             </div>
                             <div class="text-center">
-                                <div class="metric-badge">{format_number(total_likes)}</div>
+                                <div class="metric-badge">{{ total_likes_fmt }}</div>
                                 <div class="small mt-1">Total Likes</div>
                             </div>
                         </div>
@@ -199,37 +200,37 @@ def render_video_page(user_info, videos):
                 <div class="col-md-6 col-lg-4">
                     <div class="video-card">
                         {% if video.cover_image %}
-                        <img src="{video.cover_image}" alt="Cover" class="cover-image">
+                        <img src="{{ video.cover_image }}" alt="Cover" class="cover-image">
                         {% else %}
                         <div class="cover-image bg-dark d-flex align-items-center justify-content-center">
                             <i class="bi bi-play-circle" style="font-size: 3rem; color: #666;"></i>
                         </div>
                         {% endif %}
                         
-                        <h5 class="mb-2">{video.title}</h5>
-                        <p class="text-secondary small mb-2">{video.description}</p>
+                        <h5 class="mb-2">{{ video.title }}</h5>
+                        <p class="text-secondary small mb-2">{{ video.description }}</p>
                         
                         <div class="video-stats">
                             <div class="stat-item">
                                 <i class="bi bi-eye-fill"></i>
-                                <span>{video.views}</span>
+                                <span>{{ video.views }}</span>
                             </div>
                             <div class="stat-item">
                                 <i class="bi bi-heart-fill text-danger"></i>
-                                <span>{video.likes}</span>
+                                <span>{{ video.likes }}</span>
                             </div>
                             <div class="stat-item">
                                 <i class="bi bi-chat-fill"></i>
-                                <span>{video.comments}</span>
+                                <span>{{ video.comments }}</span>
                             </div>
                             <div class="stat-item">
                                 <i class="bi bi-share-fill"></i>
-                                <span>{video.shares}</span>
+                                <span>{{ video.shares }}</span>
                             </div>
                         </div>
                         
                         <div class="mt-2 text-secondary small">
-                            <i class="bi bi-clock me-1"></i>{video.created}
+                            <i class="bi bi-clock me-1"></i>{{ video.created }}
                         </div>
                     </div>
                 </div>
@@ -238,7 +239,7 @@ def render_video_page(user_info, videos):
             
             <div class="text-center mt-4">
                 <p class="text-secondary">
-                    Showing {len(formatted_videos)} of {total_videos} videos • 
+                    Showing {{ formatted_videos|length }} of {{ total_videos }} videos • 
                     <a href="/dashboard" class="text-decoration-none">Back to Dashboard</a>
                 </p>
             </div>
@@ -257,19 +258,26 @@ def render_video_page(user_info, videos):
         
         <script>
             // Add interactivity
-            document.querySelectorAll('.video-card').forEach(card => {{
+            document.querySelectorAll('.video-card').forEach(function(card) {
                 card.style.cursor = 'pointer';
-                card.addEventListener('click', function() {{
+                card.addEventListener('click', function() {
                     // In production, this would open video details
                     console.log('Video clicked:', this.querySelector('h5').textContent);
-                }});
-            }});
+                });
+            });
         </script>
     </body>
     </html>
     '''
     
-    return html
+    return render_template_string(
+        html_template,
+        user_info=user_info,
+        formatted_videos=formatted_videos,
+        total_videos=total_videos,
+        total_views_fmt=format_number(total_views),
+        total_likes_fmt=format_number(total_likes)
+    )
 
 def format_number(num):
     """Format large numbers with K/M suffixes"""
