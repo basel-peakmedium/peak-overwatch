@@ -1,0 +1,41 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="#000000"/>
+  
+  <!-- Outer ring -->
+  <circle cx="512" cy="512" r="400" fill="none" stroke="#FF0050" stroke-width="40"/>
+  
+  <!-- Middle ring -->
+  <circle cx="512" cy="512" r="300" fill="none" stroke="#00F2EA" stroke-width="30"/>
+  
+  <!-- Inner circle -->
+  <circle cx="512" cy="512" r="200" fill="#1e293b"/>
+  
+  <!-- Binoculars/eye symbol -->
+  <g transform="translate(512, 512)">
+    <!-- Left lens -->
+    <circle cx="-120" cy="0" r="80" fill="none" stroke="#FFFFFF" stroke-width="15"/>
+    <circle cx="-120" cy="0" r="40" fill="#FFFFFF" opacity="0.3"/>
+    
+    <!-- Right lens -->
+    <circle cx="120" cy="0" r="80" fill="none" stroke="#FFFFFF" stroke-width="15"/>
+    <circle cx="120" cy="0" r="40" fill="#FFFFFF" opacity="0.3"/>
+    
+    <!-- Bridge -->
+    <rect x="-40" y="-20" width="80" height="40" fill="#FFFFFF"/>
+    
+    <!-- Light beams -->
+    <path d="M-200,0 L-320,0 M200,0 L320,0 M0,-200 L0,-320 M0,200 L0,320" 
+          stroke="#FF0050" stroke-width="20" stroke-linecap="round" opacity="0.6"/>
+  </g>
+  
+  <!-- App name -->
+  <text x="512" y="850" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="60" font-weight="bold">
+    Peak Overwatch
+  </text>
+  
+  <!-- Tagline -->
+  <text x="512" y="920" text-anchor="middle" fill="#94a3b8" font-family="Arial, sans-serif" font-size="40">
+    TikTok Analytics
+  </text>
+</svg>

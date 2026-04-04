@@ -9,10 +9,10 @@ import requests
 from flask import Blueprint, redirect, request, session, jsonify, url_for
 from urllib.parse import urlencode
 
-# TikTok OAuth Configuration
-TIKTOK_CLIENT_KEY = "aw83kyu0wl317cm7"
-TIKTOK_CLIENT_SECRET = "q90wtmbdxdnxMlOYsHhwcmxLgTUNVkby"
-TIKTOK_REDIRECT_URI = "https://app.peakoverwatch.com/auth/callback"
+# TikTok OAuth Configuration - SANDBOX
+TIKTOK_CLIENT_KEY = "sbaw9w0gzav1ace888"
+TIKTOK_CLIENT_SECRET = "YkpgJ2B47MN954KkAOhHdcdFNs1NXGvY"
+TIKTOK_REDIRECT_URI = "https://app.peakoverwatch.com/tiktok/auth/callback"
 TIKTOK_AUTH_URL = "https://open.tiktokapis.com/v2/oauth/token/"
 TIKTOK_AUTHORIZE_URL = "https://www.tiktok.com/v2/auth/authorize/"
 
