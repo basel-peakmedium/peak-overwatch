@@ -16,11 +16,11 @@ TIKTOK_REDIRECT_URI = "https://app.peakoverwatch.com/tiktok/auth/callback"
 TIKTOK_AUTH_URL = "https://open.tiktokapis.com/v2/oauth/token/"
 TIKTOK_AUTHORIZE_URL = "https://www.tiktok.com/v2/auth/authorize/"
 
-# Scopes for TikTok API
+# Scopes for TikTok API - From TikTok documentation
 SCOPES = [
-    "user.info.basic",  # Get basic user info
-    "video.list",       # List user's videos
-    "video.insights"    # Get video insights
+    "user.info.basic",  # Read user's profile info (open id, avatar, display name)
+    "video.list",       # Read user's public videos on TikTok
+    # Note: video.insights is not a valid scope - removed
 ]
 
 # Create Blueprint
