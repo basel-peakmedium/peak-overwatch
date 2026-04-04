@@ -18,7 +18,11 @@ from functools import wraps
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-phase4')
-socketio = SocketIO(app, cors_allowed_origins="*")
+app.config['ENV'] = os.environ.get('FLASK_ENV', 'production')
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
+socketio = SocketIO(app, cors_allowed_origins=os.environ.get('CORS_ALLOWED_ORIGINS', '*'))
 
 # Simple in-memory storage
 users = {}
@@ -268,7 +272,14 @@ def api_login():
     sessions[token] = {'user_id': user.id, 'expires': datetime.now() + timedelta(days=7)}
     
     resp = jsonify({'success': True})
-    resp.set_cookie('session_token', token, httponly=True, max_age=7*24*60*60)
+    resp.set_cookie(
+        'session_token',
+        token,
+        httponly=True,
+        secure=app.config['SESSION_COOKIE_SECURE'],
+        samesite=app.config['SESSION_COOKIE_SAMESITE'],
+        max_age=7*24*60*60
+    )
     return resp
 
 @app.route('/logout')
@@ -621,27 +632,27 @@ def alerts_page():
 @login_required
 def settings():
     user = request.user
-    return f'''
+    return render_template_string('''
     <!DOCTYPE html>
     <html>
     <head>
         <title>Settings - Peak Overwatch</title>
         <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0a; color: #e8e8e8; }}
-            .sidebar {{ position: fixed; top: 0; left: 0; bottom: 0; width: 260px; background: #161616; border-right: 1px solid rgba(255,255,255,0.07); padding: 1.5rem; }}
-            .logo {{ font-size: 1.25rem; font-weight: 800; margin-bottom: 2rem; }}
-            .logo span:first-child {{ color: #fff; }}
-            .logo span:last-child {{ color: #FF0050; margin-left: -4px; }}
-            .nav-link {{ display: block; padding: 0.75rem 1rem; color: #e8e8e8; text-decoration: none; border-radius: 8px; margin-bottom: 0.25rem; }}
-            .nav-link:hover {{ background: rgba(255,255,255,0.05); }}
-            .nav-link.active {{ background: rgba(255,0,80,0.1); color: #00F2EA; border-left: 3px solid #FF0050; }}
-            .main {{ margin-left: 260px; padding: 2rem; }}
-            .settings-card {{ background: #161616; border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }}
-            h1 {{ font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; background: linear-gradient(135deg, #00F2EA, #FF0050); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
-            .form-group {{ margin-bottom: 1rem; }}
-            label {{ display: block; margin-bottom: 0.5rem; color: #888; }}
-            input, select {{ width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; color: #e8e8e8; }}
-            .btn {{ background: linear-gradient(135deg, #FF0050, #ff3366); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; }}
+            body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0a; color: #e8e8e8; }
+            .sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 260px; background: #161616; border-right: 1px solid rgba(255,255,255,0.07); padding: 1.5rem; }
+            .logo { font-size: 1.25rem; font-weight: 800; margin-bottom: 2rem; }
+            .logo span:first-child { color: #fff; }
+            .logo span:last-child { color: #FF0050; margin-left: -4px; }
+            .nav-link { display: block; padding: 0.75rem 1rem; color: #e8e8e8; text-decoration: none; border-radius: 8px; margin-bottom: 0.25rem; }
+            .nav-link:hover { background: rgba(255,255,255,0.05); }
+            .nav-link.active { background: rgba(255,0,80,0.1); color: #00F2EA; border-left: 3px solid #FF0050; }
+            .main { margin-left: 260px; padding: 2rem; }
+            .settings-card { background: #161616; border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+            h1 { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; background: linear-gradient(135deg, #00F2EA, #FF0050); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+            .form-group { margin-bottom: 1rem; }
+            label { display: block; margin-bottom: 0.5rem; color: #888; }
+            input, select { width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; color: #e8e8e8; }
+            .btn { background: linear-gradient(135deg, #FF0050, #ff3366); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
         </style>
     </head>
     <body>
@@ -651,48 +662,48 @@ def settings():
             <a href="/alerts" class="nav-link">Alerts</a>
             <a href="/settings" class="nav-link active">Settings</a>
             <div style="position: absolute; bottom: 1.5rem; left: 1.5rem; right: 1.5rem;">
-                <div style="margin-bottom: 0.5rem;">{user.name or user.email}</div>
+                <div style="margin-bottom: 0.5rem;">{{ user.name or user.email }}</div>
                 <a href="/logout" style="color: #888; text-decoration: none; font-size: 0.85rem;">Sign Out</a>
             </div>
         </div>
         <div class="main">
             <h1>Alert Settings</h1>
             <p style="color: #888; margin-bottom: 2rem;">Configure your alert preferences</p>
-            
+
             <div class="settings-card">
                 <h3 style="margin-bottom: 1rem;">FYP Score Thresholds</h3>
                 <div class="form-group">
                     <label>Good Threshold (Green)</label>
-                    <input type="number" value="{user.settings['fyp_threshold_good']}" min="0" max="100" id="goodThreshold">
+                    <input type="number" value="{{ user.settings['fyp_threshold_good'] }}" min="0" max="100" id="goodThreshold">
                 </div>
                 <div class="form-group">
                     <label>Warning Threshold (Yellow)</label>
-                    <input type="number" value="{user.settings['fyp_threshold_warn']}" min="0" max="100" id="warnThreshold">
+                    <input type="number" value="{{ user.settings['fyp_threshold_warn'] }}" min="0" max="100" id="warnThreshold">
                 </div>
                 <div class="form-group">
                     <label>Critical Threshold (Red)</label>
-                    <input type="number" value="{user.settings['fyp_threshold_critical']}" min="0" max="100" id="criticalThreshold">
+                    <input type="number" value="{{ user.settings['fyp_threshold_critical'] }}" min="0" max="100" id="criticalThreshold">
                 </div>
                 <button class="btn" onclick="saveThresholds()">Save Thresholds</button>
             </div>
-            
+
             <div class="settings-card">
                 <h3 style="margin-bottom: 1rem;">Notification Channels</h3>
                 <div style="margin-bottom: 1rem;">
                     <label style="display: flex; align-items: center; gap: 0.5rem;">
-                        <input type="checkbox" {'checked' if user.settings['alert_email'] else ''} id="emailAlerts">
+                        <input type="checkbox" {% if user.settings['alert_email'] %}checked{% endif %} id="emailAlerts">
                         Email Alerts
                     </label>
                 </div>
                 <div style="margin-bottom: 1rem;">
                     <label style="display: flex; align-items: center; gap: 0.5rem;">
-                        <input type="checkbox" {'checked' if user.settings['alert_notifications'] else ''} id="inAppAlerts">
+                        <input type="checkbox" {% if user.settings['alert_notifications'] %}checked{% endif %} id="inAppAlerts">
                         In-App Notifications
                     </label>
                 </div>
                 <button class="btn" onclick="saveNotifications()">Save Preferences</button>
             </div>
-            
+
             <div class="settings-card">
                 <h3 style="margin-bottom: 1rem;">Real-Time Monitoring</h3>
                 <p style="color: #888; margin-bottom: 1rem;">
@@ -709,29 +720,24 @@ def settings():
                 </div>
             </div>
         </div>
-        
+
         <script>
             function saveThresholds() {
                 const good = document.getElementById('goodThreshold').value;
                 const warn = document.getElementById('warnThreshold').value;
                 const critical = document.getElementById('criticalThreshold').value;
-                alert(`Thresholds saved:\\nGood: ${good}%\\nWarning: ${warn}%\\nCritical: ${critical}%`);
+                alert('Thresholds saved:\nGood: ' + good + '%\nWarning: ' + warn + '%\nCritical: ' + critical + '%');
             }
-            
+
             function saveNotifications() {
                 const email = document.getElementById('emailAlerts').checked;
                 const inApp = document.getElementById('inAppAlerts').checked;
-                alert(`Notifications saved:\\nEmail: ${email ? 'ON' : 'OFF'}\\nIn-App: ${inApp ? 'ON' : 'OFF'}`);
-            }
-            
-            // Test alert button
-            function testAlert() {
-                alert('Test alert feature would trigger a sample alert');
+                alert('Notifications saved:\nEmail: ' + (email ? 'ON' : 'OFF') + '\nIn-App: ' + (inApp ? 'ON' : 'OFF'));
             }
         </script>
     </body>
     </html>
-    '''
+    ''', user=user)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5006))
@@ -739,4 +745,5 @@ if __name__ == '__main__':
     print(f"📡 WebSocket server starting on port {port}")
     print(f"👤 Demo: demo@peakoverwatch.com / password123")
     print(f"🔔 Real-time monitoring active")
-    socketio.run(app, host='0.0.0.0', port=port, debug=True, allow_unsafe_werkzeug=True)
+    debug = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    socketio.run(app, host='0.0.0.0', port=port, debug=debug, allow_unsafe_werkzeug=True)

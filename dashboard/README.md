@@ -1,133 +1,57 @@
 # Peak Overwatch Dashboard
 
-TikTok affiliate analytics platform with beautiful design and full authentication system.
+Current runnable dashboard prototype for `app.peakoverwatch.com`.
 
-## Features
+## Current source of truth
 
-### ✅ Phase 1: Dashboard Design
-- Beautiful dark theme matching peakoverwatch.com
-- Sidebar navigation with sections
-- Interactive charts with cyan→red gradient
-- Account performance tables
-- Responsive design
+Use:
+- `phase4_simple.py` — current app entrypoint
 
-### ✅ Phase 2: Authentication System
-- User registration/login with bcrypt hashing
-- Session management with secure cookies
-- Protected routes (login required)
-- Demo user: `demo@peakoverwatch.com` / `password123`
-- Database schema ready for PostgreSQL
+This file currently contains the most complete runnable prototype from phases 1-4:
+- dashboard UI
+- authentication
+- settings
+- alert history
+- real-time in-app alert prototype
 
-### ✅ Phase 3: Settings & Profile Management
-- User settings page (timezone, currency, notifications)
-- Profile management (update info, change password)
-- Mock TikTok connection/disconnect system
-- Data export (CSV, summary reports)
-- FYP threshold configuration
+Older milestone files are still present only as archived stubs where needed to keep
+repo history understandable and compile checks clean.
 
 ## Quick Start
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/basel-peakmedium/peak-overwatch.git
-   cd peak-overwatch/dashboard
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements-redesign.txt
-   ```
-
-3. **Run the application:**
-   ```bash
-   python3 app_simple_auth.py
-   ```
-
-4. **Access the dashboard:**
-   - Open `http://localhost:5004`
-   - Login with demo credentials or create new account
-
-## File Structure
-
+```bash
+cd dashboard
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python3 phase4_simple.py
 ```
-dashboard/
-├── app_simple_auth.py          # Main application with authentication
-├── app-final-redesign.py       # Final dashboard design (no auth)
-├── phase3_complete.py          # Complete Phase 3 implementation
-├── models.py                   # Database models
-├── database_schema.sql         # PostgreSQL schema
-├── database_setup.py           # Database setup script
-├── requirements-redesign.txt   # Python dependencies
-├── .env.example               # Environment variables template
-├── Procfile-redesign          # Deployment configuration
-└── runtime-redesign.txt       # Python runtime version
-```
+
+Then open:
+- `http://localhost:5006`
+
+Demo login:
+- `demo@peakoverwatch.com`
+- `password123`
 
 ## Deployment
 
-### Local Development
-```bash
-python3 app_simple_auth.py
-```
+`Procfile` now points at:
+- `gunicorn phase4_simple:app`
 
-### Production (Render)
-1. Fork the repository
-2. Create new Web Service on Render
-3. Set build command: `pip install -r requirements-redesign.txt`
-4. Set start command: `gunicorn app_simple_auth:app`
-5. Add environment variables from `.env.example`
-
-### Production (Vercel)
-1. Deploy landing page to Vercel (`peakoverwatch.com`)
-2. Deploy dashboard to Render (`app.peakoverwatch.com`)
-3. Configure CORS and environment variables
-
-## Environment Variables
-
-Copy `.env.example` to `.env` and update:
+Recommended env vars:
 
 ```env
 FLASK_ENV=production
-SECRET_KEY=your-secret-key
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=peakoverwatch
-DB_USER=postgres
-DB_PASSWORD=your-password
+FLASK_DEBUG=false
+SECRET_KEY=replace-me
+PORT=5000
+SESSION_COOKIE_SECURE=true
+CORS_ALLOWED_ORIGINS=https://app.peakoverwatch.com
 ```
 
-## Database Setup (PostgreSQL)
+## Notes
 
-1. Install PostgreSQL
-2. Create database:
-   ```bash
-   python3 database_setup.py
-   ```
-3. Update `.env` with database credentials
-
-## Features Roadmap
-
-### Phase 4 (Next)
-- Real TikTok API integration (when approved)
-- Email notifications system
-- Advanced analytics and reporting
-- Team collaboration features
-
-### Phase 5
-- Mobile app (React Native)
-- Real-time WebSocket updates
-- Advanced alert system (Slack, Telegram)
-- Payment integration (Stripe)
-
-## Design Notes
-
-- Color scheme: `#FF0050` (red), `#00F2EA` (cyan), `#0a0a0a` (dark)
-- Font: Inter, system fonts fallback
-- Charts: Chart.js with custom gradients
-- Responsive: Mobile-first design
-
-## License
-
-© 2026 Peak Medium / Revler Inc. All rights reserved.
+- Current analytics and alerting data are still mock/demo data.
+- Real TikTok-backed analytics should be layered in after app approval / API access.
+- For now, prioritize code clarity and a single maintained app path over more prototype forks.

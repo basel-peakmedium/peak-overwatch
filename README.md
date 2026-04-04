@@ -1,89 +1,65 @@
 # Peak Overwatch
 
-Strategic oversight platform for TikTok affiliate operations. Provides eagle-eye view of performance metrics, FYP health monitoring, and optimization tools for TikTok Shop affiliates.
+Strategic oversight platform for TikTok affiliate operations.
 
 ## Project Structure
 
-```
+```text
 peak-overwatch/
-├── landing/           # Landing page for peakoverwatch.com
-│   ├── index.html    # Main landing page
-│   ├── terms.html    # Terms of Service
-│   ├── privacy.html  # Privacy Policy
-│   └── vercel.json   # Vercel deployment config
-├── dashboard/         # Dashboard app for app.peakoverwatch.com
-│   ├── app.py        # Flask application
-│   ├── requirements.txt
-│   ├── Procfile
-│   ├── runtime.txt
-│   └── README.md
-└── README.md          # This file
+├── landing/            # Marketing site for peakoverwatch.com
+└── dashboard/          # Flask prototype for app.peakoverwatch.com
 ```
+
+## Current Dashboard Status
+
+The dashboard repo went through several rapid prototype phases. The current
+maintained runnable entrypoint is:
+
+- `dashboard/phase4_simple.py`
+
+That file currently contains the best working combination of:
+- phase 1 UI direction
+- phase 2 auth flow
+- phase 3 settings/history flow
+- phase 4 in-app alert prototype
+
+Older milestone files that became stale or syntactically broken were reduced to
+archive stubs so the repository stays honest and healthy.
 
 ## Deployment
 
-### Landing Page (peakoverwatch.com)
-**Platform:** Vercel
-**Folder:** `landing/`
-**URL:** https://peakoverwatch.com
-
-### Dashboard (app.peakoverwatch.com)
-**Platform:** Render/Railway
-**Folder:** `dashboard/`
-**URL:** https://app.peakoverwatch.com
-
-## TikTok Developer Portal Application
-
-**App Name:** Peak Overwatch
-**Status:** Draft/Production
-**URL:** developers.tiktok.com/app/7624568636699412496/pending
-
-## Features
-
 ### Landing Page
-- Professional design with dark mode
-- Mobile-responsive layout
-- Terms of Service and Privacy Policy
-- TikTok integration messaging
+- Folder: `landing/`
+- URL: `https://peakoverwatch.com`
 
 ### Dashboard
-- FYP health monitoring with color-coded alerts
-- Profit tracking (Commission % × GMV)
-- Multi-account portfolio management
-- Interactive charts with metric switching
-- TikTok API integration ready
+- Folder: `dashboard/`
+- URL: `https://app.peakoverwatch.com`
+- Procfile entry: `gunicorn phase4_simple:app`
 
-## Setup
+## Local Development
 
-### Local Development
 ```bash
-# Landing page
-cd landing
-# Open index.html in browser
-
-# Dashboard
 cd dashboard
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-python app.py
+python3 phase4_simple.py
 ```
 
-### Production Deployment
-See individual README files in `landing/` and `dashboard/` folders.
+Open:
+- `http://localhost:5006`
 
-## Environment Variables
+Demo account:
+- `demo@peakoverwatch.com`
+- `password123`
 
-### Dashboard
-```
-FLASK_ENV=production
-SECRET_KEY=[generate with: python -c 'import secrets; print(secrets.token_hex(16))']
-PORT=5000
-```
+## Important Reality Check
 
-## TikTok API Integration
-- Login Kit for authentication
-- Display API for data visualization
-- Content Posting API (future)
-- Analytics APIs for performance data
+This dashboard is still a prototype. The app shell and flows are real, but much of
+the metrics/alerting logic is still mock data until full TikTok API-backed data is
+wired in.
 
 ## License
-© 2026 Peak Medium / Revler Inc
+
+© 2026 Peak Medium / Revler Inc.
