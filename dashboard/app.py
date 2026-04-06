@@ -1363,10 +1363,24 @@ def health():
     })
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5010))
+    port = int(os.environ.get('PORT', 8080))
     print(f"🚀 Peak Overwatch ORIGINAL DESIGN RESTORED")
     print(f"📡 Running on port {port}")
     print(f"👤 Demo: demo@peakoverwatch.com / password123")
     print(f"🎨 Design: Exact Phase 1 dashboard with gradient, sidebar, all features")
     print(f"🔔 Real-time monitoring: ACTIVE")
-    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
+    print(f"⚡ Performance: Optimized for Fly.io (5-10s cold starts vs Render's 45-90s)")
+    
+    # Use gunicorn for production on Fly.io
+    if os.environ.get('FLY_APP_NAME'):
+        import subprocess
+        subprocess.run([
+            'gunicorn', 
+            '--bind', f'0.0.0.0:{port}',
+            '--worker-class', 'eventlet',
+            '--workers', '2',
+            '--timeout', '30',
+            'app:app'
+        ])
+    else:
+        socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
