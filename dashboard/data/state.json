@@ -1,0 +1,43 @@
+{
+  "users": {
+    "demo@peakoverwatch.com": {
+      "id": 1,
+      "email": "demo@peakoverwatch.com",
+      "password_hash": "$2b$12$1T0pr0LQm1K9D3x7VZlJ7.h6J8XGxTj8mPz0JzQ3A8m8mQ5PpTn2K",
+      "name": "Demo User",
+      "company": "Peak Medium",
+      "settings": {
+        "alert_email": true,
+        "alert_notifications": true,
+        "fyp_threshold_good": 80,
+        "fyp_threshold_warn": 70,
+        "fyp_threshold_critical": 60
+      },
+      "profiles": [
+        {
+          "id": 1,
+          "username": "ourviralpicks",
+          "niche": "Home & Lifestyle",
+          "fyp_score": 81,
+          "last_fyp": 81
+        },
+        {
+          "id": 2,
+          "username": "homegadgetfinds",
+          "niche": "Gadgets & Tech",
+          "fyp_score": 78,
+          "last_fyp": 78
+        },
+        {
+          "id": 3,
+          "username": "beautytrends",
+          "niche": "Beauty & Skincare",
+          "fyp_score": 89,
+          "last_fyp": 89
+        }
+      ]
+    }
+  },
+  "sessions": {},
+  "alerts": {}
+}
