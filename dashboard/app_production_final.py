@@ -432,7 +432,7 @@ body {
 .card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(255,59,59,0.15); }
 
 /* Metric cards with stagger */
-.metric-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-bottom: 2rem; }
+.metric-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.25rem; margin-bottom: 2rem; }
 .metric-card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 14px; padding: 1.5rem;
@@ -445,6 +445,7 @@ body {
 .metric-card:nth-child(2) { animation-delay: 80ms; }
 .metric-card:nth-child(3) { animation-delay: 160ms; }
 .metric-card:nth-child(4) { animation-delay: 240ms; }
+.metric-card:nth-child(5) { animation-delay: 320ms; }
 .metric-label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.5rem; }
 .metric-value {
     font-size: 2.1rem; font-weight: 800; color: var(--text); line-height: 1;
@@ -570,11 +571,15 @@ body {
 .acc-filter { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
 .acc-filter-btn {
     padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.82rem; font-weight: 600;
-    cursor: pointer; border: 1.5px solid var(--border); background: transparent; color: var(--muted);
-    transition: all 0.15s;
+    cursor: pointer; border: 1.5px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: var(--muted);
+    transition: all 0.2s ease;
 }
-.acc-filter-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
-.acc-filter-btn.active { background: rgba(255,59,59,0.12); border-color: var(--accent); color: var(--accent); }
+.acc-filter-btn:hover { border-color: rgba(255,255,255,0.25); color: var(--text); }
+.acc-filter-btn.active { color: #fff; border-color: transparent; }
+.acc-filter-btn.active.pill-all    { background: rgba(255,255,255,0.9); color: #111; }
+.acc-filter-btn.active.pill-tv     { background: #FF3B3B; }
+.acc-filter-btn.active.pill-po     { background: #A855F7; }
+.acc-filter-btn.active.pill-dh     { background: #F59E0B; color: #111; }
 
 /* Donut cards */
 .donut-cards-row { display: flex; gap: 1.5rem; flex-wrap: wrap; }
@@ -702,6 +707,7 @@ def sidebar_html(active_page, user, unread_count=0):
         ('accounts',  '/accounts',  '◈', 'Accounts'),
         ('analytics', '/analytics', '▦', 'Analytics'),
         ('alerts',    '/alerts',    '◎', 'Alerts'),
+        ('team',      '/team',      '◑', 'Team'),
         ('settings',  '/settings',  '⚙', 'Settings'),
     ]
     links = ''
@@ -962,9 +968,14 @@ def dashboard():
             <div class="metric-sub">This month</div>
         </div>
         <div class="metric-card">
-            <div class="metric-label">Active Accounts</div>
-            <div class="metric-value" data-counter="3">0</div>
-            <div class="metric-sub"><span class="metric-pos">3/3</span> All posting</div>
+            <div class="metric-label">Videos Posted</div>
+            <div class="metric-value" data-counter="1248">0</div>
+            <div class="metric-sub">This month &middot; all accounts</div>
+        </div>
+        <div class="metric-card" style="border-color:rgba(255,59,59,0.25);background:rgba(255,59,59,0.04);">
+            <div class="metric-label" style="color:var(--accent);">&#128293; Viral Videos</div>
+            <div class="metric-value" style="color:var(--accent);" data-counter="4">0</div>
+            <div class="metric-sub">&ge;50K views delta this month</div>
         </div>
     </div>
 
@@ -1084,7 +1095,7 @@ def accounts():
             cls = 'badge-warn'
         else:
             cls = 'badge-crit'
-        return f'<span class="badge badge-fyp {cls}">FYP {score}%</span>'
+        return f'<span style="font-size:0.72rem;color:var(--muted);background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:1px 6px;font-weight:500;">FYP {score}%</span>'
 
     def status_badge(status):
         cls = {'Active': 'badge-active', 'Warning': 'badge-warning', 'Inactive': 'badge-critical'}.get(status, 'badge-info')
@@ -1142,7 +1153,10 @@ def accounts():
 
                 <div class="acc-card-footer">
                     {fyp_badge(acc['fyp_score'])}
-                    <div class="sparkline-wrap"><canvas id="{sp_id}"></canvas></div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.68rem;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em;">GMV trend</div>
+                        <div class="sparkline-wrap"><canvas id="{sp_id}"></canvas></div>
+                    </div>
                 </div>
             </div>
         </div>'''
@@ -1162,17 +1176,36 @@ def accounts():
                 options: {{
                     maintainAspectRatio: false,
                     animation: {{ duration: 800 }},
-                    plugins: {{ legend: {{ display: false }}, tooltip: {{ enabled: false }} }},
+                    plugins: {{ legend: {{ display: false }}, tooltip: {{
+                        enabled: true, backgroundColor: '#111118', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+                        callbacks: {{ label: ctx => '$' + ctx.parsed.y.toLocaleString() }}
+                    }} }},
                     scales: {{ x: {{ display: false }}, y: {{ display: false }} }}
                 }}
             }});
         }})();
         '''
 
+    add_account_modal = '''
+    <div id="addAccountModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;align-items:center;justify-content:center;">
+        <div style="background:#111118;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:2rem;max-width:400px;width:90%;position:relative;">
+            <button onclick="document.getElementById('addAccountModal').style.display='none'" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;">&#215;</button>
+            <div style="font-size:1.5rem;margin-bottom:0.75rem;">&#128279;</div>
+            <div style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem;">Coming Soon</div>
+            <div style="color:var(--muted);font-size:0.9rem;line-height:1.5;">Connect your TikTok account to sync real data. This feature is coming in the next release.</div>
+            <button onclick="document.getElementById('addAccountModal').style.display='none'" class="btn btn-primary" style="margin-top:1.5rem;width:100%;justify-content:center;">Got it</button>
+        </div>
+    </div>
+    '''
+
     body = f'''
-    <div class="page-header">
-        <div class="page-title">Accounts</div>
-        <div class="page-sub">TikTok Shop accounts performance overview</div>
+    {add_account_modal}
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+            <div class="page-title">Accounts</div>
+            <div class="page-sub">TikTok Shop accounts performance overview</div>
+        </div>
+        <button onclick="document.getElementById('addAccountModal').style.display='flex'" style="background:transparent;border:1.5px solid var(--accent);color:var(--accent);padding:0.55rem 1.1rem;border-radius:8px;font-size:0.875rem;font-weight:600;cursor:pointer;transition:background 0.15s,transform 0.15s;" onmouseover="this.style.background='rgba(255,59,59,0.08)'" onmouseout="this.style.background='transparent'">+ Add Account</button>
     </div>
     <div class="account-cards">{cards_html}</div>
     '''
@@ -1325,10 +1358,10 @@ def analytics():
 
     <!-- Account filter pills -->
     <div class="acc-filter" id="accFilter">
-        <button class="acc-filter-btn active" data-account="all">All Accounts</button>
-        <button class="acc-filter-btn" data-account="@trendvault_us" style="--acc-color:#FF3B3B;">@trendvault_us</button>
-        <button class="acc-filter-btn" data-account="@pickoftheday_co" style="--acc-color:#A855F7;">@pickoftheday_co</button>
-        <button class="acc-filter-btn" data-account="@dailyfinds_hub" style="--acc-color:#F59E0B;">@dailyfinds_hub</button>
+        <button class="acc-filter-btn active pill-all" data-account="all">All Accounts</button>
+        <button class="acc-filter-btn pill-tv" data-account="@trendvault_us">@trendvault_us</button>
+        <button class="acc-filter-btn pill-po" data-account="@pickoftheday_co">@pickoftheday_co</button>
+        <button class="acc-filter-btn pill-dh" data-account="@dailyfinds_hub">@dailyfinds_hub</button>
     </div>
 
     <!-- Section 1: GMV Trend 90d -->
@@ -1552,6 +1585,8 @@ def analytics():
             applyAccFilter(activeAccFilter);
         }});
     }});
+    // Init pill active color on page load
+    document.querySelectorAll('#accFilter .acc-filter-btn.active').forEach(function(btn) {{ btn.classList.add('active'); }});
 
     function applyAccFilter(acct) {{
         // Filter donut cards
@@ -1681,9 +1716,6 @@ def settings():
     s = user.settings
 
     notif_email = s.get('notification_email', user.email)
-    fyp_good = s.get('fyp_threshold_good', 80)
-    fyp_warn = s.get('fyp_threshold_warn', 70)
-    fyp_crit = s.get('fyp_threshold_critical', 60)
     ae = 'checked' if s.get('alert_email', True) else ''
     ac = 'checked' if s.get('alert_critical', True) else ''
     aw = 'checked' if s.get('alert_warning', True) else ''
@@ -1744,33 +1776,40 @@ def settings():
             </div>
 
             <div class="panel">
-                <div class="panel-title">FYP Score Thresholds</div>
-                <div style="color:var(--muted);font-size:0.82rem;margin-bottom:1.5rem;">Set alert trigger levels for FYP score changes</div>
+                <div class="panel-title">Growth Objectives &amp; Alert Thresholds</div>
+                <div style="color:var(--muted);font-size:0.82rem;margin-bottom:1.5rem;">Set monthly targets and alert triggers for performance monitoring</div>
                 <div class="form-group">
-                    <label class="form-label">Good <span style="color:var(--success);">&#9679;</span></label>
-                    <div class="slider-row">
-                        <input type="range" name="fyp_threshold_good" min="50" max="100" value="{fyp_good}"
-                            oninput="document.getElementById('vg').textContent=this.value+'%'">
-                        <span class="slider-val" id="vg">{fyp_good}%</span>
+                    <label class="form-label">GMV Monthly Target <span style="color:var(--success);">&#9679;</span></label>
+                    <div style="position:relative;">
+                        <span style="position:absolute;left:0.85rem;top:50%;transform:translateY(-50%);color:var(--muted);">$</span>
+                        <input class="form-input" type="number" name="gmv_monthly_target" min="0" step="100" value="30000" style="padding-left:1.75rem;">
+                    </div>
+                    <div style="font-size:0.75rem;color:var(--success);margin-top:0.35rem;">&#10003; On track &mdash; currently at $27,690 (92.3%)</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">GMV Drop Alert</label>
+                    <select class="form-input" name="gmv_drop_alert" style="cursor:pointer;">
+                        <option value="10">Alert if GMV drops 10% in a week</option>
+                        <option value="20" selected>Alert if GMV drops 20% in a week</option>
+                        <option value="30">Alert if GMV drops 30% in a week</option>
+                        <option value="custom">Custom threshold</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Monthly GMV Growth Target</label>
+                    <div style="display:flex;align-items:center;gap:0.75rem;">
+                        <input class="form-input" type="number" name="gmv_growth_target" min="0" max="200" step="1" value="15" style="max-width:120px;">
+                        <span style="color:var(--muted);font-size:0.85rem;">% growth vs last month</span>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Warning <span style="color:var(--warning);">&#9679;</span></label>
-                    <div class="slider-row">
-                        <input type="range" name="fyp_threshold_warn" min="50" max="100" value="{fyp_warn}"
-                            oninput="document.getElementById('vw').textContent=this.value+'%'">
-                        <span class="slider-val" id="vw">{fyp_warn}%</span>
+                    <label class="form-label">Monthly Views Growth Target</label>
+                    <div style="display:flex;align-items:center;gap:0.75rem;">
+                        <input class="form-input" type="number" name="views_growth_target" min="0" max="200" step="1" value="20" style="max-width:120px;">
+                        <span style="color:var(--muted);font-size:0.85rem;">% growth vs last month</span>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Critical <span style="color:var(--critical);">&#9679;</span></label>
-                    <div class="slider-row">
-                        <input type="range" name="fyp_threshold_critical" min="50" max="100" value="{fyp_crit}"
-                            oninput="document.getElementById('vc').textContent=this.value+'%'">
-                        <span class="slider-val" id="vc">{fyp_crit}%</span>
-                    </div>
-                </div>
-                <div style="margin-top:2rem;background:rgba(255,255,255,0.02);border-radius:10px;padding:1rem;border:1px solid var(--border);">
+                <div style="margin-top:1.5rem;background:rgba(255,255,255,0.02);border-radius:10px;padding:1rem;border:1px solid var(--border);">
                     <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.06em;">Account Colors</div>
                     {color_swatches}
                 </div>
@@ -1790,13 +1829,14 @@ def settings():
         const form = e.target;
         const data = {
             notification_email: form.notification_email.value,
-            fyp_threshold_good: parseInt(form.fyp_threshold_good.value),
-            fyp_threshold_warn: parseInt(form.fyp_threshold_warn.value),
-            fyp_threshold_critical: parseInt(form.fyp_threshold_critical.value),
             alert_email: form.alert_email.checked,
             alert_critical: form.alert_critical.checked,
             alert_warning: form.alert_warning.checked,
             alert_info: form.alert_info.checked,
+            gmv_monthly_target: parseFloat(form.gmv_monthly_target.value) || 30000,
+            gmv_drop_alert: form.gmv_drop_alert.value,
+            gmv_growth_target: parseFloat(form.gmv_growth_target.value) || 15,
+            views_growth_target: parseFloat(form.views_growth_target.value) || 20,
         };
         form.querySelectorAll('input[name^="commission_"]').forEach(inp => {
             data[inp.name] = parseFloat(inp.value);
@@ -1816,6 +1856,145 @@ def settings():
     '''
 
     return page_shell('Settings', 'settings', user, unread_count, body, extra_js=extra_js)
+
+
+# ---------------------------------------------------------------------------
+# /team
+# ---------------------------------------------------------------------------
+@app.route('/team')
+@login_required
+def team():
+    user = request.user
+    unread_count = len(user.get_unread_alerts())
+
+    connected_accounts_html = ''
+    for acc in MOCK_ACCOUNTS:
+        status_color = '#10b981' if acc['status'] == 'Active' else '#f59e0b'
+        connected_accounts_html += f'''
+        <div style="display:flex;align-items:center;gap:0.85rem;padding:0.75rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+            <div class="acc-dot" style="background:{acc['color']};width:12px;height:12px;"></div>
+            <div style="flex:1;">
+                <div style="font-weight:600;font-size:0.9rem;">{acc['handle']}</div>
+                <div style="color:var(--muted);font-size:0.78rem;">{acc['name']}</div>
+            </div>
+            <span style="font-size:0.78rem;color:{status_color};background:rgba(0,0,0,0.3);border:1px solid {status_color}33;border-radius:4px;padding:2px 8px;">{acc['status']}</span>
+        </div>'''
+
+    body = f'''
+    <!-- Add Account Modal -->
+    <div id="teamAddAccountModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;align-items:center;justify-content:center;">
+        <div style="background:#111118;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:2rem;max-width:400px;width:90%;position:relative;">
+            <button onclick="document.getElementById('teamAddAccountModal').style.display='none'" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;">&#215;</button>
+            <div style="font-size:1.5rem;margin-bottom:0.75rem;">&#128279;</div>
+            <div style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem;">Coming Soon</div>
+            <div style="color:var(--muted);font-size:0.9rem;line-height:1.5;">Connect your TikTok account to sync real data. This feature is coming in the next release.</div>
+            <button onclick="document.getElementById('teamAddAccountModal').style.display='none'" class="btn btn-primary" style="margin-top:1.5rem;width:100%;justify-content:center;">Got it</button>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="page-title">Team</div>
+        <div class="page-sub">Manage your organization, members, and connected accounts</div>
+    </div>
+
+    <!-- Organization -->
+    <div class="panel" style="margin-bottom:1.5rem;">
+        <div class="panel-title">Organization</div>
+        <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+            <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#FF3B3B,#E53E3E);display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:900;color:#fff;flex-shrink:0;">P</div>
+            <div>
+                <div style="font-size:1.1rem;font-weight:700;">Peak Medium</div>
+                <div style="color:var(--muted);font-size:0.85rem;margin-top:0.15rem;">Owned by Demo User &middot; demo@peakoverwatch.com</div>
+            </div>
+            <div style="margin-left:auto;">
+                <span style="background:rgba(255,59,59,0.12);border:1px solid rgba(255,59,59,0.3);color:var(--accent);font-size:0.8rem;font-weight:700;padding:0.35rem 0.85rem;border-radius:20px;">Starter &mdash; 3 accounts</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team Members -->
+    <div class="panel" style="margin-bottom:1.5rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+            <div class="panel-title" style="margin-bottom:0;">Team Members</div>
+            <button onclick="document.getElementById('inviteForm').style.display=document.getElementById('inviteForm').style.display==='none'?'block':'none'" style="background:transparent;border:1.5px solid rgba(255,255,255,0.15);color:var(--muted);padding:0.45rem 1rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.borderColor='rgba(255,255,255,0.3)';this.style.color='var(--text)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.color='var(--muted)'">+ Invite Member</button>
+        </div>
+
+        <table class="data-table" style="margin-bottom:1.25rem;">
+            <thead>
+                <tr>
+                    <th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="animation-delay:0ms;">
+                    <td style="font-weight:600;">Demo User</td>
+                    <td style="color:var(--muted);">demo@peakoverwatch.com</td>
+                    <td><span style="background:rgba(255,59,59,0.1);color:var(--accent);font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:4px;">Owner</span></td>
+                    <td><span class="badge badge-active">Active</span></td>
+                    <td style="color:var(--muted);font-size:0.8rem;">&mdash;</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Invite form (hidden by default) -->
+        <div id="inviteForm" style="display:none;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:1.25rem;">
+            <div style="font-size:0.85rem;font-weight:600;margin-bottom:1rem;">Invite a Team Member</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:0.75rem;align-items:end;flex-wrap:wrap;">
+                <div>
+                    <label class="form-label">Name</label>
+                    <input class="form-input" type="text" id="inviteName" placeholder="Full name">
+                </div>
+                <div>
+                    <label class="form-label">Email</label>
+                    <input class="form-input" type="email" id="inviteEmail" placeholder="email@example.com">
+                </div>
+                <div>
+                    <label class="form-label">Role</label>
+                    <select class="form-input" id="inviteRole" style="cursor:pointer;">
+                        <option value="Manager">Manager</option>
+                        <option value="Viewer">Viewer</option>
+                        <option value="Owner">Owner</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top:0.85rem;display:flex;align-items:center;gap:0.75rem;">
+                <button onclick="submitInvite()" class="btn btn-primary">Send Invite</button>
+                <button onclick="document.getElementById('inviteForm').style.display='none'" class="btn btn-outline">Cancel</button>
+                <span id="inviteSuccess" style="display:none;color:var(--success);font-size:0.9rem;font-weight:600;">&#10003; Invite sent!</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connected Accounts -->
+    <div class="panel" style="margin-bottom:1.5rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+            <div class="panel-title" style="margin-bottom:0;">Connected Accounts</div>
+            <button onclick="document.getElementById('teamAddAccountModal').style.display='flex'" style="background:transparent;border:1.5px solid var(--accent);color:var(--accent);padding:0.45rem 1rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='rgba(255,59,59,0.08)'" onmouseout="this.style.background='transparent'">+ Add Account</button>
+        </div>
+        {connected_accounts_html}
+    </div>
+
+    <!-- Upgrade note -->
+    <div style="text-align:center;padding:1rem;color:var(--muted);font-size:0.82rem;">
+        <span>&#128274; Upgrade to </span><strong style="color:var(--text);">Small Business</strong><span> for up to 5 accounts and 5 team members</span>
+        <a href="#" style="color:var(--accent);text-decoration:none;margin-left:0.5rem;font-weight:600;">Learn more &#8594;</a>
+    </div>
+    '''
+
+    extra_js = '''
+    function submitInvite() {
+        const name = document.getElementById('inviteName').value.trim();
+        const email = document.getElementById('inviteEmail').value.trim();
+        if (!name || !email) { alert('Please fill in name and email.'); return; }
+        const success = document.getElementById('inviteSuccess');
+        success.style.display = 'inline';
+        document.getElementById('inviteName').value = '';
+        document.getElementById('inviteEmail').value = '';
+        setTimeout(() => { success.style.display = 'none'; document.getElementById('inviteForm').style.display = 'none'; }, 2500);
+    }
+    '''
+
+    return page_shell('Team', 'team', user, unread_count, body, extra_js=extra_js)
 
 
 # ---------------------------------------------------------------------------
@@ -1859,9 +2038,9 @@ def api_settings():
     user = request.user
     data = request.json or {}
     allowed = [
-        'notification_email', 'fyp_threshold_good', 'fyp_threshold_warn',
-        'fyp_threshold_critical', 'alert_email', 'alert_critical', 'alert_warning', 'alert_info',
+        'notification_email', 'alert_email', 'alert_critical', 'alert_warning', 'alert_info',
         'commission_trendvault_us', 'commission_pickoftheday_co', 'commission_dailyfinds_hub',
+        'gmv_monthly_target', 'gmv_drop_alert', 'gmv_growth_target', 'views_growth_target',
     ]
     for key in allowed:
         if key in data:
