@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Peak Overwatch - COMPLETE DASHBOARD WITH ALL 5 TABS
-Dashboard, Accounts, Analytics, Alerts, Settings - All functional with mock data
+Peak Overwatch - COMPLETE WITH ALL 5 TABS
+Dashboard, Accounts, Analytics, Alerts, Settings - All functional
 """
 
 from flask import Flask, render_template_string, redirect, request, jsonify, make_response
@@ -237,132 +237,41 @@ def render_page(user, active_tab, content):
     commission_earned = int(total_gmv * 0.15)
     fyp_health_score = int(sum(p['fyp_score'] for p in user.profiles) / len(user.profiles))
     
-    return render_template_string('''
+    return f'''
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Peak Overwatch • {{ active_tab.title() }}</title>
+        <title>Peak Overwatch • {active_tab.title()}</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <style>
-            :root { 
-                --red: #FF0050; 
-                --cyan: #00F2EA; 
-                --dark: #0a0a0a; 
-                --surface: #161616; 
-                --border: rgba(255,255,255,0.07); 
-                --text: #e8e8e8; 
-                --muted: #888888; 
-            }
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-                font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-                background: var(--dark); 
-                color: var(--text); 
-            }
-            .sidebar { 
-                position: fixed; 
-                top: 0; 
-                left: 0; 
-                bottom: 0; 
-                width: 260px; 
-                background: var(--surface); 
-                border-right: 1px solid var(--border); 
-                padding: 1.5rem; 
-            }
-            .logo { 
-                font-size: 1.25rem; 
-                font-weight: 800; 
-                margin-bottom: 2rem; 
-            }
-            .logo span:first-child { color: #fff; }
-            .logo span:last-child { color: var(--red); margin-left: -4px; }
-            .nav-link { 
-                display: block; 
-                padding: 0.75rem 1rem; 
-                color: #e8e8e8; 
-                text-decoration: none; 
-                border-radius: 8px; 
-                margin-bottom: 0.25rem; 
-                display: flex; 
-                align-items: center; 
-                gap: 0.75rem; 
-            }
-            .nav-link.active { 
-                background: rgba(255,0,80,0.1); 
-                color: #00F2EA; 
-            }
-            .nav-link:hover:not(.active) { 
-                background: rgba(255,255,255,0.05); 
-            }
-            .main-content { 
-                margin-left: 260px; 
-                padding: 2rem; 
-                min-height: 100vh; 
-            }
-            .page-header { 
-                margin-bottom: 2rem; 
-            }
-            .page-header h1 { 
-                font-size: 2rem; 
-                font-weight: 800; 
-                margin-bottom: 0.5rem; 
-                background: linear-gradient(135deg, var(--cyan), var(--red)); 
-                -webkit-background-clip: text; 
-                -webkit-text-fill-color: transparent; 
-            }
-            .page-header p { 
-                color: var(--muted); 
-                font-size: 1.1rem; 
-            }
-            .card { 
-                background: var(--surface); 
-                border: 1px solid var(--border); 
-                border-radius: 16px; 
-                padding: 1.5rem; 
-                margin-bottom: 1.5rem; 
-            }
-            .btn { 
-                background: linear-gradient(135deg, var(--red), #ff3366); 
-                color: white; 
-                border: none; 
-                padding: 0.5rem 1rem; 
-                border-radius: 8px; 
-                font-weight: 600; 
-                cursor: pointer; 
-                text-decoration: none; 
-                display: inline-block; 
-            }
-            .notification-badge { 
-                background: var(--red); 
-                color: white; 
-                border-radius: 50%; 
-                width: 20px; 
-                height: 20px; 
-                display: inline-flex; 
-                align-items: center; 
-                justify-content: center; 
-                font-size: 0.7rem; 
-                font-weight: 600; 
-                margin-left: auto; 
-            }
-            .user-menu { 
-                position: absolute; 
-                bottom: 1.5rem; 
-                left: 1.5rem; 
-                right: 1.5rem; 
-            }
-            .user-info { 
-                padding: 1rem; 
-                background: var(--dark); 
-                border-radius: 8px; 
-                margin-bottom: 0.5rem; 
-            }
-            .user-name { 
-                font-weight: 600; 
-                margin-bottom: 0.25rem; 
-            }
-            .user-email { 
-                font-size: 0.85rem
+            :root {{ --red: #FF0050; --cyan: #00F2EA; --dark: #0a0a0a; --surface: #161616; --border: rgba(255,255,255,0.07); --text: #e8e8e8; --muted: #888888; }}
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--dark); color: var(--text); }}
+            .sidebar {{ position: fixed; top: 0; left: 0; bottom: 0; width: 260px; background: var(--surface); border-right: 1px solid var(--border); padding: 1.5rem; }}
+            .logo {{ font-size: 1.25rem; font-weight: 800; margin-bottom: 2rem; }}
+            .logo span:first-child {{ color: #fff; }}
+            .logo span:last-child {{ color: var(--red); margin-left: -4px; }}
+            .nav-link {{ display: block; padding: 0.75rem 1rem; color: #e8e8e8; text-decoration: none; border-radius: 8px; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.75rem; }}
+            .nav-link.active {{ background: rgba(255,0,80,0.1); color: #00F2EA; }}
+            .nav-link:hover:not(.active) {{ background: rgba(255,255,255,0.05); }}
+            .main-content {{ margin-left: 260px; padding: 2rem; min-height: 100vh; }}
+            .page-header {{ margin-bottom: 2rem; }}
+            .page-header h1 {{ font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; background: linear-gradient(135deg, var(--cyan), var(--red)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
+            .page-header p {{ color: var(--muted); font-size: 1.1rem; }}
+            .card {{ background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }}
+            .btn {{ background: linear-gradient(135deg, var(--red), #ff3366); color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }}
+            .notification-badge {{ background: var(--red); color: white; border-radius: 50%; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; margin-left: auto; }}
+            .user-menu {{ position: absolute; bottom: 1.5rem; left: 1.5rem; right: 1.5rem; }}
+            .user-info {{ padding: 1rem; background: var(--dark); border-radius: 8px; margin-bottom: 0.5rem; }}
+            .user-name {{ font-weight: 600; margin-bottom: 0.25rem; }}
+            .user-email {{ font-size: 0.85rem; color: var(--muted); }}
+            .logout-link {{ display: block; padding: 0.75rem 1rem; color: var(--muted); text-decoration: none; border-radius: 8px; }}
+            .logout-link:hover {{ background: rgba(255,255,255,0.05); color: var(--text); }}
+            .metrics-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem; }}
+            .metric-card {{ background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; }}
+            .metric-label {{ color: var(--muted); font-size: 0.9rem; margin-bottom: 0.5rem; }}
+            .metric-value {{ font-size: 2rem; font-weight: 800; color: var(--cyan); }}
+            .

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Peak Overwatch - COMPLETE DASHBOARD WITH ALL 5 TABS
+Peak Overwatch - ALL 5 TABS COMPLETE
 Dashboard, Accounts, Analytics, Alerts, Settings - All functional with mock data
 """
 
@@ -17,8 +17,10 @@ import time
 from functools import wraps
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'complete-' + secrets.token_hex(16))
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'all-tabs-' + secrets.token_hex(16))
 
 # Storage
 users = {}
@@ -51,6 +53,24 @@ class User:
             {'id': 4, 'username': 'cartcravings30', 'niche': 'Food & Kitchen', 'profit': 5842, 'growth': 8.3, 'fyp_score': 72, 'status': 'warning', 'last_active': '2026-04-06 22:15:00', 'followers': 45000, 'videos': 128},
             {'id': 5, 'username': 'fitnessessentials', 'niche': 'Fitness & Wellness', 'profit': 10234, 'growth': 21.5, 'fyp_score': 89, 'status': 'active', 'last_active': '2026-04-07 10:00:00', 'followers': 167000, 'videos': 312}
         ]
+        self.analytics_data = self._generate_analytics_data()
+    
+    def _generate_analytics_data(self):
+        data = []
+        base_date = datetime.now() - timedelta(days=30)
+        for i in range(30):
+            date = base_date + timedelta(days=i)
+            base_gmv = 4000 + (i * 200) + random.randint(-300, 300)
+            data.append({
+                'date': date.strftime('%Y-%m-%d'),
+                'gmv': base_gmv,
+                'commission': base_gmv * 0.15 + random.randint(-200, 200),
+                'views': 50000 + (i * 1500) + random.randint(-5000, 5000),
+                'engagement_rate': round(4.2 + (i * 0.05) + random.uniform(-0.2, 0.2), 2),
+                'new_followers': random.randint(150, 800),
+                'video_count': random.randint(3, 12)
+            })
+        return data
     
     def verify_password(self, password):
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
@@ -231,138 +251,38 @@ def logout():
     return resp
 
 # Helper to render pages
-def render_page(user, active_tab, content):
+def render_page(user, active_tab, template_content):
     unread_alerts = user.get_unread_alerts()
     total_gmv = sum(p['profit'] * 3 for p in user.profiles)
     commission_earned = int(total_gmv * 0.15)
     fyp_health_score = int(sum(p['fyp_score'] for p in user.profiles) / len(user.profiles))
     
-    return render_template_string('''
+    base_html = f'''
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Peak Overwatch • {{ active_tab.title() }}</title>
+        <title>Peak Overwatch • {active_tab.title()}</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <style>
-            :root { 
-                --red: #FF0050; 
-                --cyan: #00F2EA; 
-                --dark: #0a0a0a; 
-                --surface: #161616; 
-                --border: rgba(255,255,255,0.07); 
-                --text: #e8e8e8; 
-                --muted: #888888; 
-            }
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-                font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-                background: var(--dark); 
-                color: var(--text); 
-            }
-            .sidebar { 
-                position: fixed; 
-                top: 0; 
-                left: 0; 
-                bottom: 0; 
-                width: 260px; 
-                background: var(--surface); 
-                border-right: 1px solid var(--border); 
-                padding: 1.5rem; 
-            }
-            .logo { 
-                font-size: 1.25rem; 
-                font-weight: 800; 
-                margin-bottom: 2rem; 
-            }
-            .logo span:first-child { color: #fff; }
-            .logo span:last-child { color: var(--red); margin-left: -4px; }
-            .nav-link { 
-                display: block; 
-                padding: 0.75rem 1rem; 
-                color: #e8e8e8; 
-                text-decoration: none; 
-                border-radius: 8px; 
-                margin-bottom: 0.25rem; 
-                display: flex; 
-                align-items: center; 
-                gap: 0.75rem; 
-            }
-            .nav-link.active { 
-                background: rgba(255,0,80,0.1); 
-                color: #00F2EA; 
-            }
-            .nav-link:hover:not(.active) { 
-                background: rgba(255,255,255,0.05); 
-            }
-            .main-content { 
-                margin-left: 260px; 
-                padding: 2rem; 
-                min-height: 100vh; 
-            }
-            .page-header { 
-                margin-bottom: 2rem; 
-            }
-            .page-header h1 { 
-                font-size: 2rem; 
-                font-weight: 800; 
-                margin-bottom: 0.5rem; 
-                background: linear-gradient(135deg, var(--cyan), var(--red)); 
-                -webkit-background-clip: text; 
-                -webkit-text-fill-color: transparent; 
-            }
-            .page-header p { 
-                color: var(--muted); 
-                font-size: 1.1rem; 
-            }
-            .card { 
-                background: var(--surface); 
-                border: 1px solid var(--border); 
-                border-radius: 16px; 
-                padding: 1.5rem; 
-                margin-bottom: 1.5rem; 
-            }
-            .btn { 
-                background: linear-gradient(135deg, var(--red), #ff3366); 
-                color: white; 
-                border: none; 
-                padding: 0.5rem 1rem; 
-                border-radius: 8px; 
-                font-weight: 600; 
-                cursor: pointer; 
-                text-decoration: none; 
-                display: inline-block; 
-            }
-            .notification-badge { 
-                background: var(--red); 
-                color: white; 
-                border-radius: 50%; 
-                width: 20px; 
-                height: 20px; 
-                display: inline-flex; 
-                align-items: center; 
-                justify-content: center; 
-                font-size: 0.7rem; 
-                font-weight: 600; 
-                margin-left: auto; 
-            }
-            .user-menu { 
-                position: absolute; 
-                bottom: 1.5rem; 
-                left: 1.5rem; 
-                right: 1.5rem; 
-            }
-            .user-info { 
-                padding: 1rem; 
-                background: var(--dark); 
-                border-radius: 8px; 
-                margin-bottom: 0.5rem; 
-            }
-            .user-name { 
-                font-weight: 600; 
-                margin-bottom: 0.25rem; 
-            }
-            .user-email { 
-                font-size: 0.85rem
+            :root {{ --red: #FF0050; --cyan: #00F2EA; --dark: #0a0a0a; --surface: #161616; --border: rgba(255,255,255,0.07); --text: #e8e8e8; --muted: #888888; }}
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--dark); color: var(--text); }}
+            .sidebar {{ position: fixed; top: 0; left: 0; bottom: 0; width: 260px; background: var(--surface); border-right: 1px solid var(--border); padding: 1.5rem; }}
+            .logo {{ font-size: 1.25rem; font-weight: 800; margin-bottom: 2rem; }}
+            .logo span:first-child {{ color: #fff; }}
+            .logo span:last-child {{ color: var(--red); margin-left: -4px; }}
+            .nav-link {{ display: block; padding: 0.75rem 1rem; color: #e8e8e8; text-decoration: none; border-radius: 8px; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.75rem; }}
+            .nav-link.active {{ background: rgba(255,0,80,0.1); color: #00F2EA; }}
+            .nav-link:hover:not(.active) {{ background: rgba(255,255,255,0.05); }}
+            .main-content {{ margin-left: 260px; padding: 2rem; min-height: 100vh; }}
+            .page-header {{ margin-bottom: 2rem; }}
+            .page-header h1 {{ font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; background: linear-gradient(135deg, var(--cyan), var(--red)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
+            .page-header p {{ color: var(--muted); font-size: 1.1rem; }}
+            .card {{ background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }}
+            .btn {{ background: linear-gradient(135deg, var(--red), #ff3366); color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }}
+            .notification-badge {{ background: var(--red); color: white; border-radius: 50%; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; margin-left: auto; }}
+            .user-menu {{ position: absolute; bottom: 1.5rem; left: 1.5rem; right: 1.5rem; }}
+            .user-info {{ padding: 1rem; background: var(--dark); border-radius: 8px; margin-bottom:
