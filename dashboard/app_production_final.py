@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Peak Overwatch - Production Final Version (Spec v1.0 Rebuild)
-Full UI rebuild: GMV hero, toggleable chart, animations
+Peak Overwatch - Rebuild v1.1
+Red theme, gradient charts, per-account analytics, decision metrics
 """
 
-from flask import Flask, render_template_string, redirect, request, jsonify, make_response
+from flask import Flask, redirect, request, jsonify, make_response
 import os
 import json
 from datetime import datetime, timedelta
@@ -32,17 +32,20 @@ alerts_store = {}
 lock = Lock()
 
 # ---------------------------------------------------------------------------
-# Mock account data (spec v1.0)
+# Mock account data (spec v1.1)
 # ---------------------------------------------------------------------------
 MOCK_ACCOUNTS = [
     {
         'handle': '@trendvault_us',
         'name': 'Trend Vault US',
-        'color': '#00C9A7',
+        'color': '#FF3B3B',
+        'color_rgb': '255,59,59',
         'gmv': 22600,
         'commission': 13.2,
         'videos': 847,
         'views': 2100000,
+        'views_last_month': 1800000,
+        'mom_pct': 16.7,
         'earnings': 2983,
         'status': 'Active',
         'fyp_score': 94,
@@ -50,11 +53,14 @@ MOCK_ACCOUNTS = [
     {
         'handle': '@pickoftheday_co',
         'name': 'Pick of the Day',
-        'color': '#8B5CF6',
+        'color': '#A855F7',
+        'color_rgb': '168,85,247',
         'gmv': 4200,
         'commission': 11.8,
         'videos': 312,
         'views': 480000,
+        'views_last_month': 390000,
+        'mom_pct': 23.1,
         'earnings': 496,
         'status': 'Active',
         'fyp_score': 81,
@@ -63,10 +69,13 @@ MOCK_ACCOUNTS = [
         'handle': '@dailyfinds_hub',
         'name': 'Daily Finds Hub',
         'color': '#F59E0B',
+        'color_rgb': '245,158,11',
         'gmv': 890,
         'commission': 14.5,
         'videos': 89,
         'views': 95000,
+        'views_last_month': 110000,
+        'mom_pct': -13.6,
         'earnings': 129,
         'status': 'Warning',
         'fyp_score': 67,
@@ -74,21 +83,57 @@ MOCK_ACCOUNTS = [
 ]
 
 MOCK_PRODUCTS = [
-    {'name': 'Stainless Steel Chef Knife Set', 'account': '@trendvault_us', 'color': '#00C9A7', 'units': 312, 'gmv': 8400, 'commission': 13.2},
-    {'name': 'LED Strip Lights 32ft RGB', 'account': '@trendvault_us', 'color': '#00C9A7', 'units': 547, 'gmv': 6200, 'commission': 13.2},
-    {'name': 'Wireless Earbuds Pro Max', 'account': '@pickoftheday_co', 'color': '#8B5CF6', 'units': 189, 'gmv': 2800, 'commission': 11.8},
-    {'name': 'Bamboo Cutting Board Set', 'account': '@trendvault_us', 'color': '#00C9A7', 'units': 234, 'gmv': 2600, 'commission': 13.2},
-    {'name': 'Portable Blender USB', 'account': '@trendvault_us', 'color': '#00C9A7', 'units': 178, 'gmv': 2100, 'commission': 13.2},
-    {'name': 'Silicone Cooking Utensil Set', 'account': '@pickoftheday_co', 'color': '#8B5CF6', 'units': 145, 'gmv': 870, 'commission': 11.8},
-    {'name': 'Yoga Mat Non-Slip Pro', 'account': '@dailyfinds_hub', 'color': '#F59E0B', 'units': 67, 'gmv': 540, 'commission': 14.5},
-    {'name': 'Wall Art Canvas Prints', 'account': '@dailyfinds_hub', 'color': '#F59E0B', 'units': 43, 'gmv': 350, 'commission': 14.5},
+    {'name': 'Portable Blender Pro', 'account': '@trendvault_us', 'color': '#FF3B3B', 'units': 234, 'gmv': 3200, 'commission': 13.2},
+    {'name': 'LED Desk Lamp', 'account': '@trendvault_us', 'color': '#FF3B3B', 'units': 189, 'gmv': 2800, 'commission': 13.2},
+    {'name': 'Resistance Bands Set', 'account': '@pickoftheday_co', 'color': '#A855F7', 'units': 156, 'gmv': 1900, 'commission': 11.8},
+    {'name': 'Ceramic Mug Warmer', 'account': '@trendvault_us', 'color': '#FF3B3B', 'units': 143, 'gmv': 1600, 'commission': 13.2},
+    {'name': 'Foam Roller', 'account': '@pickoftheday_co', 'color': '#A855F7', 'units': 98, 'gmv': 890, 'commission': 11.8},
 ]
 
 MOCK_VIRAL_VIDEOS = [
-    {'title': 'Chef Knife Set Full Review', 'account': '@trendvault_us', 'color': '#00C9A7', 'total_views': 1200000, 'views_this_month': 890000, 'date': '2026-03-12'},
-    {'title': 'Home Decor Haul 2026', 'account': '@trendvault_us', 'color': '#00C9A7', 'total_views': 780000, 'views_this_month': 620000, 'date': '2026-03-18'},
-    {'title': 'Best LED Lights Setup Ever', 'account': '@trendvault_us', 'color': '#00C9A7', 'total_views': 450000, 'views_this_month': 380000, 'date': '2026-03-22'},
-    {'title': 'Top Kitchen Gadgets 2026', 'account': '@pickoftheday_co', 'color': '#8B5CF6', 'total_views': 210000, 'views_this_month': 180000, 'date': '2026-03-25'},
+    {'title': 'Blender that changes everything', 'account': '@trendvault_us', 'color': '#FF3B3B', 'total_views': 350000, 'views_this_month': 287000, 'date': '2026-03-08', 'days_old': 30},
+    {'title': 'You need this lamp', 'account': '@trendvault_us', 'color': '#FF3B3B', 'total_views': 190000, 'views_this_month': 143000, 'date': '2026-03-14', 'days_old': 24},
+    {'title': 'Best desk setup under $50', 'account': '@trendvault_us', 'color': '#FF3B3B', 'total_views': 120000, 'views_this_month': 89000, 'date': '2026-03-20', 'days_old': 18},
+    {'title': 'These bands are insane', 'account': '@pickoftheday_co', 'color': '#A855F7', 'total_views': 90000, 'views_this_month': 67000, 'date': '2026-03-22', 'days_old': 16},
+]
+
+REVENUE_SOURCES = {
+    '@trendvault_us':    {'Videos': 74, 'Shop Ads': 22, 'LIVE': 3,  'Other': 1},
+    '@pickoftheday_co':  {'Videos': 81, 'Shop Ads': 15, 'LIVE': 4,  'Other': 0},
+    '@dailyfinds_hub':   {'Videos': 91, 'Shop Ads': 9,  'LIVE': 0,  'Other': 0},
+}
+
+DECISION_METRICS = [
+    {
+        'handle': '@trendvault_us',
+        'color': '#FF3B3B',
+        'avg_views_video': 2480,
+        'mom_views_pct': 16.7,
+        'avg_daily_posts': 28.2,
+        'commission_per_1k_views': 1.42,
+        'gmv_per_video': 26.7,
+        'viral_rate': 0.35,
+    },
+    {
+        'handle': '@pickoftheday_co',
+        'color': '#A855F7',
+        'avg_views_video': 1538,
+        'mom_views_pct': 23.1,
+        'avg_daily_posts': 10.4,
+        'commission_per_1k_views': 1.03,
+        'gmv_per_video': 13.5,
+        'viral_rate': 0.32,
+    },
+    {
+        'handle': '@dailyfinds_hub',
+        'color': '#F59E0B',
+        'avg_views_video': 1067,
+        'mom_views_pct': -13.6,
+        'avg_daily_posts': 3.0,
+        'commission_per_1k_views': 1.36,
+        'gmv_per_video': 10.0,
+        'viral_rate': 0.0,
+    },
 ]
 
 
@@ -101,12 +146,10 @@ def fmt_views(n):
 
 
 def generate_gmv_series(days=30):
-    """Generate per-account daily GMV for the last N days."""
     base = datetime.now() - timedelta(days=days)
-    # Daily targets (monthly / days with some ramp-up)
-    targets = [753, 140, 30]  # trendvault, pickoftheday, dailyfinds
+    targets = [753, 140, 30]
     series = []
-    rng = random.Random(42)  # seeded for consistency
+    rng = random.Random(42)
     for i in range(days):
         d = base + timedelta(days=i)
         ramp = 0.7 + 0.3 * (i / days)
@@ -122,12 +165,7 @@ def generate_gmv_series(days=30):
     return series
 
 
-def generate_90d_series():
-    return generate_gmv_series(90)
-
-
 def generate_monthly_bar_data():
-    """Generate views per account per month for last 3 months."""
     months = ['Jan', 'Feb', 'Mar']
     rng = random.Random(7)
     data = {}
@@ -141,7 +179,6 @@ def generate_monthly_bar_data():
 
 
 def generate_monthly_video_data():
-    """Generate videos posted per account per month for last 3 months."""
     months = ['Jan', 'Feb', 'Mar']
     rng = random.Random(13)
     data = {}
@@ -154,8 +191,14 @@ def generate_monthly_video_data():
     return months, data
 
 
+def generate_sparkline(handle, days=7):
+    rng = random.Random(hash(handle) % 1000)
+    tgt = {'@trendvault_us': 753, '@pickoftheday_co': 140, '@dailyfinds_hub': 30}.get(handle, 100)
+    return [max(0, int(tgt * rng.uniform(0.6, 1.4))) for _ in range(days)]
+
+
 # ---------------------------------------------------------------------------
-# User class
+# User
 # ---------------------------------------------------------------------------
 class User:
     def __init__(self, user_id, email, password_hash, name=None, company=None):
@@ -173,7 +216,6 @@ class User:
             'alert_critical': True,
             'alert_warning': True,
             'alert_info': False,
-            # Commission rates per account (overrideable)
             'commission_trendvault_us': 13.2,
             'commission_pickoftheday_co': 11.8,
             'commission_dailyfinds_hub': 14.5,
@@ -230,19 +272,17 @@ class Monitor:
     def _monitor_loop(self):
         while True:
             try:
-                user_list = list(users.values())
-                for user in user_list:
+                for user in list(users.values()):
                     s = user.settings
                     warn = s.get('fyp_threshold_warn', 70)
                     for acc in MOCK_ACCOUNTS:
-                        score = acc['fyp_score']
-                        if score < warn:
+                        if acc['fyp_score'] < warn:
                             user.add_alert(
-                                f'⚠️ Warning: {acc["handle"]}',
-                                f'FYP score at {score}% — below warning threshold',
+                                f'FYP Warning: {acc["handle"]}',
+                                f'FYP score at {acc["fyp_score"]}% — below warning threshold',
                                 'warning'
                             )
-                time.sleep(3600)  # Check hourly
+                time.sleep(3600)
             except Exception as e:
                 logger.error(f"Monitor error: {e}")
                 time.sleep(60)
@@ -279,43 +319,49 @@ def login_required(f):
 
 
 # ---------------------------------------------------------------------------
-# Shared UI pieces
+# Shared CSS / JS
 # ---------------------------------------------------------------------------
 COMMON_CSS = '''
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
-    --bg: #0a0a0a;
-    --surface: #111317;
-    --surface2: #181b20;
+    --bg: #0A0A0F;
+    --surface: #111118;
+    --surface2: #18181f;
     --border: rgba(255,255,255,0.07);
     --text: #e8eaed;
     --muted: #7a8090;
-    --teal: #00C9A7;
-    --purple: #8B5CF6;
-    --orange: #F59E0B;
-    --total-line: #E5E7EB;
+    --accent: #FF3B3B;
+    --accent2: #E53E3E;
+    --purple: #A855F7;
+    --amber: #F59E0B;
+    --total-line: #F0F0F0;
     --success: #10b981;
     --warning: #f59e0b;
     --critical: #ef4444;
     --info: #60a5fa;
-    --red: #FF0050;
-    --accent: #00C9A7;
 }
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     background: var(--bg);
     color: var(--text);
     opacity: 0;
-    animation: fadeIn 0.35s ease forwards;
+    transform: translateY(20px);
+    animation: pageLoad 0.4s ease forwards;
 }
-@keyframes fadeIn { to { opacity: 1; } }
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(18px); }
+@keyframes pageLoad {
     to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes staggerIn {
     from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes countFlash {
+    0%   { color: var(--accent); }
+    100% { color: var(--text); }
 }
 
 /* Sidebar */
@@ -332,11 +378,12 @@ body {
 }
 .logo-mark {
     width: 28px; height: 28px; border-radius: 7px;
-    background: linear-gradient(135deg, var(--teal), #0080ff);
+    background: linear-gradient(135deg, #FF3B3B, #E53E3E);
     display: flex; align-items: center; justify-content: center;
-    font-size: 0.85rem; font-weight: 900; color: #000; flex-shrink: 0;
+    font-size: 0.85rem; font-weight: 900; color: #fff; flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(255,59,59,0.4);
 }
-.logo-text span { color: var(--teal); }
+.logo-text span { color: var(--accent); }
 .sidebar-nav { flex: 1; padding: 1rem 0.75rem; }
 .nav-item {
     display: flex; align-items: center; gap: 0.7rem;
@@ -348,25 +395,23 @@ body {
 }
 .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
 .nav-item.active {
-    background: rgba(0,201,167,0.1);
-    color: var(--teal);
+    background: rgba(255,59,59,0.1);
+    color: var(--accent);
 }
 .nav-item.active::before {
     content: '';
     position: absolute; left: 0; top: 20%; bottom: 20%;
     width: 3px; border-radius: 0 3px 3px 0;
-    background: var(--teal);
-    transition: top 0.2s, bottom 0.2s;
+    background: var(--accent);
 }
 .nav-icon { width: 18px; text-align: center; font-size: 0.95rem; }
 .notif-badge {
-    background: var(--red); color: #fff; border-radius: 10px;
+    background: var(--accent); color: #fff; border-radius: 10px;
     padding: 1px 6px; font-size: 0.7rem; font-weight: 700;
     margin-left: auto; min-width: 18px; text-align: center;
 }
 .sidebar-footer {
-    padding: 1rem 1.25rem; border-top: 1px solid var(--border);
-    font-size: 0.85rem;
+    padding: 1rem 1.25rem; border-top: 1px solid var(--border); font-size: 0.85rem;
 }
 .sidebar-footer .user-name { color: var(--text); font-weight: 600; margin-bottom: 0.25rem; }
 .sidebar-footer a { color: var(--muted); text-decoration: none; font-size: 0.8rem; }
@@ -384,14 +429,30 @@ body {
     border-radius: 14px; padding: 1.5rem;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.card:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,0.35); }
+.card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(255,59,59,0.15); }
+
+/* Metric cards with stagger */
 .metric-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-bottom: 2rem; }
+.metric-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.5rem;
+    opacity: 0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    animation: fadeInUp 0.4s ease forwards;
+}
+.metric-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(255,59,59,0.15); }
+.metric-card:nth-child(1) { animation-delay: 0ms; }
+.metric-card:nth-child(2) { animation-delay: 80ms; }
+.metric-card:nth-child(3) { animation-delay: 160ms; }
+.metric-card:nth-child(4) { animation-delay: 240ms; }
 .metric-label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.5rem; }
 .metric-value {
     font-size: 2.1rem; font-weight: 800; color: var(--text); line-height: 1;
     font-variant-numeric: tabular-nums;
 }
 .metric-sub { color: var(--muted); font-size: 0.8rem; margin-top: 0.4rem; }
+.metric-pos { color: var(--success); }
+.metric-neg { color: var(--critical); }
 
 /* Panels */
 .panel {
@@ -407,11 +468,11 @@ body {
     display: inline-flex; align-items: center; gap: 0.4rem;
     padding: 0.35rem 0.85rem; border-radius: 20px; font-size: 0.8rem;
     font-weight: 600; cursor: pointer; border: 1.5px solid transparent;
-    transition: opacity 0.2s, transform 0.1s;
+    transition: opacity 0.2s, transform 0.15s;
     background: rgba(255,255,255,0.05);
 }
 .toggle-btn:hover { transform: scale(1.04); }
-.toggle-btn.off { opacity: 0.35; }
+.toggle-btn.off { opacity: 0.3; }
 .toggle-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .chart-wrap { position: relative; height: 300px; }
 
@@ -424,8 +485,12 @@ body {
 }
 .data-table td { padding: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
 .data-table tr:last-child td { border-bottom: none; }
-.data-table tbody tr { transition: background 0.15s; }
-.data-table tbody tr:hover { background: rgba(255,255,255,0.025); }
+.data-table tbody tr {
+    opacity: 0;
+    animation: staggerIn 0.35s ease forwards;
+    transition: background 0.15s;
+}
+.data-table tbody tr:hover { background: rgba(255,255,255,0.03); }
 
 /* Account dot */
 .acc-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
@@ -436,23 +501,25 @@ body {
     display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px;
     font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em;
 }
-.badge-active { background: rgba(16,185,129,0.15); color: #10b981; }
-.badge-warning { background: rgba(245,158,11,0.15); color: #f59e0b; }
-.badge-critical { background: rgba(239,68,68,0.15); color: #ef4444; }
-.badge-info { background: rgba(96,165,250,0.15); color: var(--info); }
-.badge-good { background: rgba(16,185,129,0.15); color: #10b981; }
-.badge-warn { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.badge-active  { background: rgba(16,185,129,0.15);  color: #10b981; }
+.badge-warning { background: rgba(245,158,11,0.15);  color: #f59e0b; }
+.badge-critical{ background: rgba(239,68,68,0.15);   color: #ef4444; }
+.badge-info    { background: rgba(96,165,250,0.15);  color: var(--info); }
+.badge-good    { background: rgba(16,185,129,0.15);  color: #10b981; }
+.badge-warn    { background: rgba(245,158,11,0.15);  color: #f59e0b; }
+.badge-crit    { background: rgba(239,68,68,0.15);   color: #ef4444; }
+.badge-fyp     { background: rgba(255,59,59,0.15);   color: var(--accent); font-size: 0.7rem; }
 
 /* Buttons */
 .btn {
     display: inline-flex; align-items: center; gap: 0.4rem;
     padding: 0.55rem 1.1rem; border-radius: 8px; font-size: 0.875rem;
     font-weight: 600; cursor: pointer; border: none; text-decoration: none;
-    transition: background 0.2s, transform 0.1s;
+    transition: background 0.15s, transform 0.15s;
 }
-.btn:hover { transform: translateY(-1px); }
-.btn-primary { background: var(--teal); color: #000; }
-.btn-primary:hover { background: #00b396; }
+.btn:hover { transform: scale(1.02); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent2); box-shadow: 0 4px 16px rgba(255,59,59,0.4); }
 .btn-outline {
     background: transparent; color: var(--muted);
     border: 1px solid var(--border);
@@ -461,28 +528,92 @@ body {
 
 /* KPI card */
 .kpi-card {
-    background: linear-gradient(135deg, rgba(0,201,167,0.1), rgba(0,128,255,0.05));
-    border: 1px solid rgba(0,201,167,0.2); border-radius: 14px;
-    padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
-    display: inline-flex; align-items: center; gap: 1rem;
+    background: rgba(255,59,59,0.06);
+    border: 1px solid rgba(255,59,59,0.2); border-radius: 14px;
+    padding: 1.25rem 1.5rem; display: inline-flex; align-items: center; gap: 1rem;
 }
-.kpi-number { font-size: 2.5rem; font-weight: 800; color: var(--teal); line-height: 1; }
+.kpi-number { font-size: 2.5rem; font-weight: 800; color: var(--accent); line-height: 1; }
 .kpi-label { font-size: 0.9rem; color: var(--muted); }
 
-/* Two-col layout */
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+/* Two/three col layout */
+.two-col   { display: grid; grid-template-columns: 1fr 1fr;       gap: 1.5rem; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr;   gap: 1.5rem; }
+
+/* Account cards (page 2) */
+.account-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+.account-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+    opacity: 0;
+    animation: fadeInUp 0.4s ease forwards;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.account-card:hover { transform: translateY(-4px); }
+.account-card:nth-child(1) { animation-delay: 0ms; }
+.account-card:nth-child(2) { animation-delay: 80ms; }
+.account-card:nth-child(3) { animation-delay: 160ms; }
+.acc-card-bar { height: 4px; width: 100%; }
+.acc-card-body { padding: 1.25rem 1.5rem; }
+.acc-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.acc-card-handle { font-size: 1rem; font-weight: 700; }
+.acc-card-gmv { font-size: 2rem; font-weight: 800; margin-bottom: 0.25rem; }
+.acc-card-earnings { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
+.acc-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+.acc-card-stat { }
+.acc-card-stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.2rem; }
+.acc-card-stat-val { font-size: 0.95rem; font-weight: 600; }
+.acc-card-mom { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; font-weight: 700; }
+.acc-card-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 0.85rem; border-top: 1px solid var(--border); }
+.sparkline-wrap { position: relative; height: 40px; width: 80px; }
+
+/* Filter pills (analytics) */
+.acc-filter { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.acc-filter-btn {
+    padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; border: 1.5px solid var(--border); background: transparent; color: var(--muted);
+    transition: all 0.15s;
+}
+.acc-filter-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+.acc-filter-btn.active { background: rgba(255,59,59,0.12); border-color: var(--accent); color: var(--accent); }
+
+/* Donut cards */
+.donut-cards-row { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+.donut-card {
+    flex: 1; min-width: 200px; max-width: 280px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.25rem; text-align: center;
+    transition: all 0.2s;
+}
+.donut-card.single-mode { max-width: 360px; flex: 0 0 360px; }
+.donut-legend { text-align: left; margin-top: 1rem; }
+.donut-legend-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; margin-bottom: 0.4rem; }
+.donut-legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+/* Decision metrics table */
+.dm-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.dm-table th {
+    text-align: left; padding: 0.6rem 0.85rem;
+    color: var(--muted); font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.06em; border-bottom: 1px solid var(--border);
+}
+.dm-table td { padding: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+.dm-table tr:last-child td { border-bottom: none; }
+.dm-flag-green  { color: #10b981; font-weight: 600; }
+.dm-flag-yellow { color: #f59e0b; font-weight: 600; }
+.dm-flag-red    { color: #ef4444; font-weight: 600; }
 
 /* Alert items */
 .alert-row {
     background: rgba(255,255,255,0.02); border: 1px solid var(--border);
     border-left: 3px solid var(--muted); border-radius: 10px;
     padding: 1rem 1.25rem; margin-bottom: 0.75rem;
+    opacity: 0;
+    animation: staggerIn 0.35s ease forwards;
 }
 .alert-row.critical { border-left-color: var(--critical); }
-.alert-row.warning { border-left-color: var(--warning); }
-.alert-row.info { border-left-color: var(--info); }
-.alert-row.read { opacity: 0.45; }
+.alert-row.warning  { border-left-color: var(--warning); }
+.alert-row.info     { border-left-color: var(--info); }
+.alert-row.read     { opacity: 0.4; }
 
 /* Form */
 .form-group { margin-bottom: 1.25rem; }
@@ -490,22 +621,28 @@ body {
 .form-input {
     width: 100%; padding: 0.65rem 0.85rem;
     background: rgba(255,255,255,0.04); border: 1px solid var(--border);
-    border-radius: 8px; color: var(--text); font-size: 0.9rem;
-    transition: border-color 0.2s;
+    border-radius: 8px; color: var(--text); font-size: 0.9rem; transition: border-color 0.2s;
 }
-.form-input:focus { outline: none; border-color: var(--teal); }
+.form-input:focus { outline: none; border-color: var(--accent); }
 .form-input[type=number] { -moz-appearance: textfield; }
 .form-input[type=number]::-webkit-inner-spin-button { opacity: 0.3; }
 .checkbox-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.4rem 0; cursor: pointer; }
-input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--teal); }
+input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent); }
 .slider-row { display: flex; align-items: center; gap: 1rem; }
-.slider-val { font-weight: 700; color: var(--teal); min-width: 3rem; text-align: right; }
+.slider-val { font-weight: 700; color: var(--accent); min-width: 3rem; text-align: right; }
 input[type=range] { flex: 1; -webkit-appearance: none; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.1); cursor: pointer; }
-input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--teal); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); }
 
 /* Responsive */
-@media (max-width: 1100px) { .metric-cards { grid-template-columns: repeat(2, 1fr); } .two-col, .three-col { grid-template-columns: 1fr; } }
-@media (max-width: 768px) { .sidebar { display: none; } .main { margin-left: 0; padding: 1rem; } .metric-cards { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 1100px) {
+    .metric-cards { grid-template-columns: repeat(2, 1fr); }
+    .two-col, .three-col { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 1rem; }
+    .metric-cards { grid-template-columns: 1fr 1fr; }
+}
 '''
 
 COUNTER_JS = '''
@@ -549,14 +686,23 @@ Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
 Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 '''
 
+TABLE_STAGGER_JS = '''
+document.querySelectorAll('.data-table tbody tr').forEach(function(tr, i) {
+    tr.style.animationDelay = (i * 50) + 'ms';
+});
+document.querySelectorAll('.alert-row').forEach(function(el, i) {
+    el.style.animationDelay = (i * 50) + 'ms';
+});
+'''
+
 
 def sidebar_html(active_page, user, unread_count=0):
     pages = [
         ('dashboard', '/dashboard', '⊞', 'Dashboard'),
-        ('accounts', '/accounts', '◈', 'Accounts'),
+        ('accounts',  '/accounts',  '◈', 'Accounts'),
         ('analytics', '/analytics', '▦', 'Analytics'),
-        ('alerts', '/alerts', '◎', 'Alerts'),
-        ('settings', '/settings', '⚙', 'Settings'),
+        ('alerts',    '/alerts',    '◎', 'Alerts'),
+        ('settings',  '/settings',  '⚙', 'Settings'),
     ]
     links = ''
     for key, href, icon, label in pages:
@@ -564,11 +710,7 @@ def sidebar_html(active_page, user, unread_count=0):
         badge = ''
         if key == 'alerts' and unread_count > 0:
             badge = f'<span class="notif-badge">{unread_count}</span>'
-        links += f'''<a href="{href}" class="nav-item{active_cls}">
-            <span class="nav-icon">{icon}</span>
-            <span>{label}</span>
-            {badge}
-        </a>\n'''
+        links += f'<a href="{href}" class="nav-item{active_cls}"><span class="nav-icon">{icon}</span><span>{label}</span>{badge}</a>\n'
     name = user.name or user.email
     return f'''
     <aside class="sidebar">
@@ -593,12 +735,9 @@ def page_shell(title, active_page, user, unread_count, body_html, extra_css='', 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Peak Overwatch • {title}</title>
+    <title>Peak Overwatch \u2022 {title}</title>
     {chartjs_tag}
-    <style>
-        {COMMON_CSS}
-        {extra_css}
-    </style>
+    <style>{COMMON_CSS}{extra_css}</style>
 </head>
 <body>
     {sidebar_html(active_page, user, unread_count)}
@@ -607,6 +746,7 @@ def page_shell(title, active_page, user, unread_count, body_html, extra_css='', 
     </main>
     <script>
         {COUNTER_JS}
+        {TABLE_STAGGER_JS}
         {CHART_DEFAULTS if load_chartjs else ''}
         {extra_js}
     </script>
@@ -632,33 +772,49 @@ def login():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Peak Overwatch — Sign In</title>
+    <title>Peak Overwatch \u2014 Sign In</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin:0; padding:0; box-sizing:border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background: #0a0a0a; color: #e8eaed;
+            background: #0A0A0F; color: #e8eaed;
             display: flex; align-items: center; justify-content: center;
             min-height: 100vh;
             opacity: 0; animation: f 0.4s ease forwards;
         }
         @keyframes f { to { opacity: 1; } }
         .box {
-            background: #111317; border: 1px solid rgba(255,255,255,0.07);
+            background: #111118; border: 1px solid rgba(255,255,255,0.07);
             border-radius: 18px; padding: 2.25rem; width: 340px;
         }
-        .logo { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; }
-        .logo-mark { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, #00C9A7, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: 900; color: #000; font-size: 0.9rem; }
-        .logo-text { font-size: 1.15rem; font-weight: 800; }
-        .logo-text span { color: #00C9A7; }
-        .tagline { color: #7a8090; font-size: 0.85rem; margin-bottom: 2rem; }
-        label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: #7a8090; margin-bottom: 0.4rem; }
-        input { width: 100%; padding: 0.7rem 0.9rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 9px; color: #e8eaed; font-size: 0.9rem; margin-bottom: 1rem; transition: border-color 0.2s; }
-        input:focus { outline: none; border-color: #00C9A7; }
-        .submit { width: 100%; padding: 0.8rem; background: #00C9A7; color: #000; font-weight: 700; font-size: 0.95rem; border: none; border-radius: 9px; cursor: pointer; margin-top: 0.5rem; transition: background 0.2s; }
-        .submit:hover { background: #00b396; }
-        .hint { font-size: 0.78rem; color: #7a8090; margin-top: 1.25rem; text-align: center; }
-        .err { color: #ef4444; font-size: 0.85rem; margin-top: 0.5rem; display: none; }
+        .logo { display:flex; align-items:center; gap:0.6rem; margin-bottom:0.5rem; }
+        .logo-mark {
+            width:30px; height:30px; border-radius:8px;
+            background: linear-gradient(135deg, #FF3B3B, #E53E3E);
+            display:flex; align-items:center; justify-content:center;
+            font-weight:900; color:#fff; font-size:0.9rem;
+            box-shadow: 0 4px 12px rgba(255,59,59,0.4);
+        }
+        .logo-text { font-size:1.15rem; font-weight:800; }
+        .logo-text span { color:#FF3B3B; }
+        .tagline { color:#7a8090; font-size:0.85rem; margin-bottom:2rem; }
+        label { display:block; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em; color:#7a8090; margin-bottom:0.4rem; }
+        input {
+            width:100%; padding:0.7rem 0.9rem;
+            background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
+            border-radius:9px; color:#e8eaed; font-size:0.9rem; margin-bottom:1rem;
+            transition: border-color 0.2s;
+        }
+        input:focus { outline:none; border-color:#FF3B3B; }
+        .submit {
+            width:100%; padding:0.8rem;
+            background:#FF3B3B; color:#fff; font-weight:700; font-size:0.95rem;
+            border:none; border-radius:9px; cursor:pointer;
+            margin-top:0.5rem; transition: background 0.2s, transform 0.1s;
+        }
+        .submit:hover { background:#E53E3E; transform:scale(1.02); box-shadow:0 4px 16px rgba(255,59,59,0.4); }
+        .hint { font-size:0.78rem; color:#7a8090; margin-top:1.25rem; text-align:center; }
+        .err { color:#ef4444; font-size:0.85rem; margin-top:0.5rem; display:none; }
     </style>
 </head>
 <body>
@@ -682,8 +838,7 @@ def login():
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('.submit');
-            btn.textContent = 'Signing in...';
-            btn.disabled = true;
+            btn.textContent = 'Signing in...'; btn.disabled = true;
             const res = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -742,20 +897,14 @@ def dashboard():
     user = request.user
     unread_count = len(user.get_unread_alerts())
 
-    total_gmv = 27690
-    total_commission = 3608
-    total_views_m = 2.675
-    active_accounts = 3
-
-    # GMV series (30d)
     series = generate_gmv_series(30)
     labels = [d['date'] for d in series]
-    ds_tv = [d['@trendvault_us'] for d in series]
-    ds_po = [d['@pickoftheday_co'] for d in series]
-    ds_dh = [d['@dailyfinds_hub'] for d in series]
-    ds_total = [d['total'] for d in series]
+    ds_tv    = [d['@trendvault_us']   for d in series]
+    ds_po    = [d['@pickoftheday_co'] for d in series]
+    ds_dh    = [d['@dailyfinds_hub']  for d in series]
+    ds_total = [d['total']            for d in series]
 
-    # Hero products
+    # Hero products (top 3 from spec)
     top3 = MOCK_PRODUCTS[:3]
     hero_products_html = ''
     for i, p in enumerate(top3):
@@ -785,7 +934,7 @@ def dashboard():
                 <div style="color:var(--muted);font-size:0.78rem;">{v['account']}</div>
             </div>
             <div style="text-align:right;">
-                <div style="font-weight:700;font-size:0.9rem;color:var(--teal);">{fmt_views(v['views_this_month'])}</div>
+                <div style="font-weight:700;font-size:0.9rem;color:var(--accent);">{fmt_views(v['views_this_month'])}</div>
                 <div style="color:var(--muted);font-size:0.75rem;">this month</div>
             </div>
         </div>'''
@@ -793,49 +942,49 @@ def dashboard():
     body = f'''
     <div class="page-header">
         <div class="page-title">Dashboard</div>
-        <div class="page-sub">Portfolio overview · {datetime.now().strftime("%B %Y")}</div>
+        <div class="page-sub">Portfolio overview &middot; {datetime.now().strftime("%B %Y")}</div>
     </div>
 
     <div class="metric-cards">
-        <div class="card">
+        <div class="metric-card">
             <div class="metric-label">Total GMV</div>
-            <div class="metric-value" data-counter="{total_gmv}" data-prefix="$">$0</div>
-            <div class="metric-sub">↑ 14% vs last month</div>
+            <div class="metric-value" data-counter="27690" data-prefix="$">$0</div>
+            <div class="metric-sub"><span class="metric-pos">&#8593; 18.4%</span> vs last month</div>
         </div>
-        <div class="card">
+        <div class="metric-card">
             <div class="metric-label">Est. Commission</div>
-            <div class="metric-value" data-counter="{total_commission}" data-prefix="$">$0</div>
+            <div class="metric-value" data-counter="3608" data-prefix="$">$0</div>
             <div class="metric-sub">Across 3 accounts</div>
         </div>
-        <div class="card">
+        <div class="metric-card">
             <div class="metric-label">Total Views</div>
-            <div class="metric-value" data-counter="{total_views_m}" data-suffix="M">0M</div>
-            <div class="metric-sub">847 videos this month</div>
+            <div class="metric-value" data-counter="2.68" data-suffix="M">0M</div>
+            <div class="metric-sub">This month</div>
         </div>
-        <div class="card">
+        <div class="metric-card">
             <div class="metric-label">Active Accounts</div>
-            <div class="metric-value" data-counter="{active_accounts}">0</div>
-            <div class="metric-sub">All monitored</div>
+            <div class="metric-value" data-counter="3">0</div>
+            <div class="metric-sub"><span class="metric-pos">3/3</span> All posting</div>
         </div>
     </div>
 
-    <!-- Main chart -->
-    <div class="panel" style="margin-bottom:1.5rem;">
+    <!-- GMV Trend Chart -->
+    <div class="panel">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
-            <div class="panel-title" style="margin-bottom:0;">GMV Trend · Last 30 Days</div>
+            <div class="panel-title" style="margin-bottom:0;">GMV Trend &middot; Last 30 Days</div>
         </div>
         <div class="chart-toggles" id="gmvToggles">
-            <button class="toggle-btn" data-idx="0" style="color:#00C9A7;border-color:#00C9A7;background:rgba(0,201,167,0.1);">
-                <span class="toggle-dot" style="background:#00C9A7;"></span>@trendvault_us
+            <button class="toggle-btn" data-idx="0" style="color:#FF3B3B;border-color:#FF3B3B;background:rgba(255,59,59,0.1);">
+                <span class="toggle-dot" style="background:#FF3B3B;"></span>@trendvault_us
             </button>
-            <button class="toggle-btn" data-idx="1" style="color:#8B5CF6;border-color:#8B5CF6;background:rgba(139,92,246,0.1);">
-                <span class="toggle-dot" style="background:#8B5CF6;"></span>@pickoftheday_co
+            <button class="toggle-btn" data-idx="1" style="color:#A855F7;border-color:#A855F7;background:rgba(168,85,247,0.1);">
+                <span class="toggle-dot" style="background:#A855F7;"></span>@pickoftheday_co
             </button>
             <button class="toggle-btn" data-idx="2" style="color:#F59E0B;border-color:#F59E0B;background:rgba(245,158,11,0.1);">
                 <span class="toggle-dot" style="background:#F59E0B;"></span>@dailyfinds_hub
             </button>
-            <button class="toggle-btn" data-idx="3" style="color:#E5E7EB;border-color:rgba(229,231,235,0.3);background:rgba(229,231,235,0.05);">
-                <span class="toggle-dot" style="background:#E5E7EB;"></span>Total
+            <button class="toggle-btn" data-idx="3" style="color:#F0F0F0;border-color:rgba(240,240,240,0.3);background:rgba(240,240,240,0.05);">
+                <span class="toggle-dot" style="background:#F0F0F0;"></span>Total
             </button>
         </div>
         <div class="chart-wrap"><canvas id="gmvChart"></canvas></div>
@@ -849,58 +998,71 @@ def dashboard():
         </div>
         <div class="panel">
             <div class="panel-title">Viral Videos This Month</div>
-            <div style="color:var(--muted);font-size:0.8rem;margin-bottom:0.5rem;">≥50K views delta</div>
+            <div style="color:var(--muted);font-size:0.8rem;margin-bottom:0.5rem;">&ge;50K views delta</div>
             {viral_html}
         </div>
     </div>
     '''
 
     extra_js = f'''
-    const gmvLabels = {json.dumps(labels)};
-    const gmvData = [
-        {{ label: '@trendvault_us', data: {json.dumps(ds_tv)}, borderColor: '#00C9A7', backgroundColor: 'rgba(0,201,167,0.08)', tension: 0.4, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2 }},
-        {{ label: '@pickoftheday_co', data: {json.dumps(ds_po)}, borderColor: '#8B5CF6', backgroundColor: 'rgba(139,92,246,0.08)', tension: 0.4, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2 }},
-        {{ label: '@dailyfinds_hub', data: {json.dumps(ds_dh)}, borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,0.08)', tension: 0.4, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2 }},
-        {{ label: 'Total', data: {json.dumps(ds_total)}, borderColor: '#E5E7EB', backgroundColor: 'rgba(229,231,235,0.04)', tension: 0.4, pointRadius: 0, pointHoverRadius: 4, borderWidth: 1.5, borderDash: [4,3] }},
-    ];
-    const gmvChart = new Chart(document.getElementById('gmvChart').getContext('2d'), {{
-        type: 'line',
-        data: {{ labels: gmvLabels, datasets: gmvData }},
-        options: {{
-            maintainAspectRatio: false,
-            animation: {{ duration: 1000, easing: 'easeInOutQuart' }},
-            interaction: {{ intersect: false, mode: 'index' }},
-            plugins: {{
-                legend: {{ display: false }},
-                tooltip: {{
-                    backgroundColor: '#181b20',
-                    borderColor: 'rgba(255,255,255,0.1)',
-                    borderWidth: 1,
-                    padding: 12,
-                    callbacks: {{
-                        label: ctx => ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString()
-                    }}
-                }}
+    (function() {{
+        const canvas = document.getElementById('gmvChart');
+        const ctx = canvas.getContext('2d');
+        const H = 300;
+
+        function mkGrad(r, g, b) {{
+            const gr = ctx.createLinearGradient(0, 0, 0, H);
+            gr.addColorStop(0, 'rgba(' + r + ',' + g + ',' + b + ',0.6)');
+            gr.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',0)');
+            return gr;
+        }}
+
+        const gradTV    = mkGrad(255, 59,  59);
+        const gradPO    = mkGrad(168, 85,  247);
+        const gradDH    = mkGrad(245, 158, 11);
+        const gradTotal = mkGrad(240, 240, 240);
+
+        const gmvChart = new Chart(ctx, {{
+            type: 'line',
+            data: {{
+                labels: {json.dumps(labels)},
+                datasets: [
+                    {{ label: '@trendvault_us',   data: {json.dumps(ds_tv)},    borderColor: '#FF3B3B', backgroundColor: gradTV,    fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2 }},
+                    {{ label: '@pickoftheday_co', data: {json.dumps(ds_po)},    borderColor: '#A855F7', backgroundColor: gradPO,    fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2 }},
+                    {{ label: '@dailyfinds_hub',  data: {json.dumps(ds_dh)},    borderColor: '#F59E0B', backgroundColor: gradDH,    fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2 }},
+                    {{ label: 'Total',            data: {json.dumps(ds_total)}, borderColor: '#F0F0F0', backgroundColor: gradTotal, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4, borderWidth: 1.5, borderDash: [4,3] }},
+                ]
             }},
-            scales: {{
-                x: {{ ticks: {{ color: '#7a8090', maxTicksLimit: 10 }}, grid: {{ color: 'rgba(255,255,255,0.04)' }} }},
-                y: {{
-                    ticks: {{ color: '#7a8090', callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v) }},
-                    grid: {{ color: 'rgba(255,255,255,0.04)' }}
+            options: {{
+                maintainAspectRatio: false,
+                animation: {{ duration: 1200, easing: 'easeInOutQuart' }},
+                interaction: {{ intersect: false, mode: 'index' }},
+                plugins: {{
+                    legend: {{ display: false }},
+                    tooltip: {{
+                        backgroundColor: '#111118',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1, padding: 12,
+                        callbacks: {{ label: ctx => ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString() }}
+                    }}
+                }},
+                scales: {{
+                    x: {{ ticks: {{ color: '#7a8090', maxTicksLimit: 10 }}, grid: {{ color: 'rgba(255,255,255,0.04)' }} }},
+                    y: {{ ticks: {{ color: '#7a8090', callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v) }}, grid: {{ color: 'rgba(255,255,255,0.04)' }} }}
                 }}
             }}
-        }}
-    }});
-
-    document.querySelectorAll('.toggle-btn').forEach(btn => {{
-        btn.addEventListener('click', function() {{
-            const idx = parseInt(this.dataset.idx);
-            const meta = gmvChart.getDatasetMeta(idx);
-            meta.hidden = !meta.hidden;
-            this.classList.toggle('off', meta.hidden);
-            gmvChart.update();
         }});
-    }});
+
+        document.querySelectorAll('#gmvToggles .toggle-btn').forEach(btn => {{
+            btn.addEventListener('click', function() {{
+                const idx = parseInt(this.dataset.idx);
+                const meta = gmvChart.getDatasetMeta(idx);
+                meta.hidden = !meta.hidden;
+                this.classList.toggle('off', meta.hidden);
+                gmvChart.update();
+            }});
+        }});
+    }})();
     '''
 
     return page_shell('Dashboard', 'dashboard', user, unread_count, body, extra_js=extra_js, load_chartjs=True)
@@ -917,115 +1079,105 @@ def accounts():
 
     def fyp_badge(score):
         if score >= 80:
-            return f'<span class="badge badge-good">{score}%</span>'
+            cls = 'badge-good'
         elif score >= 70:
-            return f'<span class="badge badge-warn">{score}%</span>'
-        return f'<span class="badge badge-critical">{score}%</span>'
+            cls = 'badge-warn'
+        else:
+            cls = 'badge-crit'
+        return f'<span class="badge badge-fyp {cls}">FYP {score}%</span>'
 
     def status_badge(status):
         cls = {'Active': 'badge-active', 'Warning': 'badge-warning', 'Inactive': 'badge-critical'}.get(status, 'badge-info')
         return f'<span class="badge {cls}">{status}</span>'
 
-    rows = ''
-    for i, acc in enumerate(MOCK_ACCOUNTS):
+    def mom_html(pct, color):
+        arrow = '&#8593;' if pct >= 0 else '&#8595;'
+        c = 'var(--success)' if pct >= 0 else 'var(--critical)'
+        sign = '+' if pct >= 0 else ''
+        return f'<span style="color:{c};font-weight:700;">{arrow} {sign}{pct:.1f}%</span>'
+
+    cards_html = ''
+    sparkline_inits = ''
+    for acc in MOCK_ACCOUNTS:
         commission = user.get_commission(acc['handle'])
         earnings = int(acc['gmv'] * commission / 100)
-        delay = i * 0.08
-        rows += f'''
-        <tr style="animation: staggerIn 0.4s ease {delay:.2f}s both;">
-            <td>
-                <div class="acc-cell">
-                    <div class="acc-dot" style="background:{acc['color']};width:12px;height:12px;"></div>
+        avg_views = int(acc['views'] / max(acc['videos'], 1))
+        sp_data = generate_sparkline(acc['handle'])
+        sp_id = f"sp_{acc['handle'].lstrip('@').replace('.','_').replace('-','_')}"
+        cards_html += f'''
+        <div class="account-card">
+            <div class="acc-card-bar" style="background:{acc['color']};"></div>
+            <div class="acc-card-body">
+                <div class="acc-card-header">
                     <div>
-                        <div style="font-weight:600;">{acc['handle']}</div>
+                        <div class="acc-card-handle" style="color:{acc['color']};">{acc['handle']}</div>
                         <div style="color:var(--muted);font-size:0.78rem;">{acc['name']}</div>
                     </div>
+                    {status_badge(acc['status'])}
                 </div>
-            </td>
-            <td style="font-weight:700;">${acc['gmv']:,}</td>
-            <td>{commission:.1f}%</td>
-            <td style="color:var(--teal);font-weight:600;">${earnings:,}</td>
-            <td>{acc['videos']:,}</td>
-            <td>{fmt_views(acc['views'])}</td>
-            <td>{status_badge(acc['status'])}</td>
-            <td>{fyp_badge(acc['fyp_score'])}</td>
-        </tr>'''
+
+                <div class="acc-card-gmv" style="color:{acc['color']};" data-counter="{acc['gmv']}" data-prefix="$">$0</div>
+                <div class="acc-card-earnings">
+                    {commission:.1f}% avg commission &middot; <span style="color:var(--text);font-weight:600;">${earnings:,}</span> earned
+                </div>
+
+                <div class="acc-card-grid">
+                    <div class="acc-card-stat">
+                        <div class="acc-card-stat-label">Videos</div>
+                        <div class="acc-card-stat-val">{acc['videos']:,}</div>
+                    </div>
+                    <div class="acc-card-stat">
+                        <div class="acc-card-stat-label">Total Views</div>
+                        <div class="acc-card-stat-val">{fmt_views(acc['views'])}</div>
+                    </div>
+                    <div class="acc-card-stat">
+                        <div class="acc-card-stat-label">Avg Views/Video</div>
+                        <div class="acc-card-stat-val">{fmt_views(avg_views)}</div>
+                    </div>
+                    <div class="acc-card-stat">
+                        <div class="acc-card-stat-label">MoM Views</div>
+                        <div class="acc-card-stat-val">{mom_html(acc['mom_pct'], acc['color'])}</div>
+                    </div>
+                </div>
+
+                <div class="acc-card-footer">
+                    {fyp_badge(acc['fyp_score'])}
+                    <div class="sparkline-wrap"><canvas id="{sp_id}"></canvas></div>
+                </div>
+            </div>
+        </div>'''
+
+        sparkline_inits += f'''
+        (function() {{
+            const sctx = document.getElementById('{sp_id}').getContext('2d');
+            const sGrad = sctx.createLinearGradient(0, 0, 0, 40);
+            sGrad.addColorStop(0, 'rgba({acc["color_rgb"]},0.5)');
+            sGrad.addColorStop(1, 'rgba({acc["color_rgb"]},0)');
+            new Chart(sctx, {{
+                type: 'line',
+                data: {{
+                    labels: {json.dumps(['D1','D2','D3','D4','D5','D6','D7'])},
+                    datasets: [{{ data: {json.dumps(sp_data)}, borderColor: '{acc["color"]}', backgroundColor: sGrad, fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5 }}]
+                }},
+                options: {{
+                    maintainAspectRatio: false,
+                    animation: {{ duration: 800 }},
+                    plugins: {{ legend: {{ display: false }}, tooltip: {{ enabled: false }} }},
+                    scales: {{ x: {{ display: false }}, y: {{ display: false }} }}
+                }}
+            }});
+        }})();
+        '''
 
     body = f'''
-    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div>
-            <div class="page-title">Accounts</div>
-            <div class="page-sub">TikTok Shop accounts and performance metrics</div>
-        </div>
+    <div class="page-header">
+        <div class="page-title">Accounts</div>
+        <div class="page-sub">TikTok Shop accounts performance overview</div>
     </div>
-
-    <div class="panel">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Account</th>
-                    <th>GMV (Month)</th>
-                    <th>Avg Commission</th>
-                    <th>Est. Earnings</th>
-                    <th>Videos Posted</th>
-                    <th>Total Views</th>
-                    <th>Status</th>
-                    <th>FYP Score</th>
-                </tr>
-            </thead>
-            <tbody>{rows}</tbody>
-        </table>
-    </div>
-
-    <div class="two-col">
-        <div class="panel">
-            <div class="panel-title">GMV by Account</div>
-            <div style="position:relative;height:220px;"><canvas id="accGmvChart"></canvas></div>
-        </div>
-        <div class="panel">
-            <div class="panel-title">Views by Account</div>
-            <div style="position:relative;height:220px;"><canvas id="accViewsChart"></canvas></div>
-        </div>
-    </div>
+    <div class="account-cards">{cards_html}</div>
     '''
 
-    gmvs = [acc['gmv'] for acc in MOCK_ACCOUNTS]
-    views = [acc['views'] for acc in MOCK_ACCOUNTS]
-    handles = [acc['handle'] for acc in MOCK_ACCOUNTS]
-    colors = [acc['color'] for acc in MOCK_ACCOUNTS]
-
-    extra_js = f'''
-    const accLabels = {json.dumps(handles)};
-    const accColors = {json.dumps(colors)};
-    new Chart(document.getElementById('accGmvChart'), {{
-        type: 'bar',
-        data: {{ labels: accLabels, datasets: [{{ data: {json.dumps(gmvs)}, backgroundColor: accColors, borderRadius: 6 }}] }},
-        options: {{
-            maintainAspectRatio: false,
-            animation: {{ duration: 1000, easing: 'easeInOutQuart' }},
-            plugins: {{ legend: {{ display: false }} }},
-            scales: {{
-                x: {{ ticks: {{ color: '#7a8090', font: {{size: 11}} }}, grid: {{ display: false }} }},
-                y: {{ ticks: {{ color: '#7a8090', callback: v => '$' + v.toLocaleString() }}, grid: {{ color: 'rgba(255,255,255,0.04)' }} }}
-            }}
-        }}
-    }});
-    new Chart(document.getElementById('accViewsChart'), {{
-        type: 'bar',
-        data: {{ labels: accLabels, datasets: [{{ data: {json.dumps(views)}, backgroundColor: accColors, borderRadius: 6 }}] }},
-        options: {{
-            maintainAspectRatio: false,
-            animation: {{ duration: 1000, easing: 'easeInOutQuart' }},
-            plugins: {{ legend: {{ display: false }} }},
-            scales: {{
-                x: {{ ticks: {{ color: '#7a8090', font: {{size: 11}} }}, grid: {{ display: false }} }},
-                y: {{ ticks: {{ color: '#7a8090', callback: v => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'K' : v }}, grid: {{ color: 'rgba(255,255,255,0.04)' }} }}
-            }}
-        }}
-    }});
-    '''
-
-    return page_shell('Accounts', 'accounts', user, unread_count, body, extra_js=extra_js, load_chartjs=True)
+    return page_shell('Accounts', 'accounts', user, unread_count, body, extra_js=sparkline_inits, load_chartjs=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1037,263 +1189,404 @@ def analytics():
     user = request.user
     unread_count = len(user.get_unread_alerts())
 
-    # 90-day GMV series
     series90 = generate_gmv_series(90)
-    labels90 = [d['date'] for d in series90]
-    ds90_tv = [d['@trendvault_us'] for d in series90]
-    ds90_po = [d['@pickoftheday_co'] for d in series90]
-    ds90_dh = [d['@dailyfinds_hub'] for d in series90]
-    ds90_total = [d['total'] for d in series90]
+    labels90  = [d['date']              for d in series90]
+    ds90_tv   = [d['@trendvault_us']    for d in series90]
+    ds90_po   = [d['@pickoftheday_co']  for d in series90]
+    ds90_dh   = [d['@dailyfinds_hub']   for d in series90]
+    ds90_tot  = [d['total']             for d in series90]
 
-    months, views_data = generate_monthly_bar_data()
-    _, videos_data = generate_monthly_video_data()
+    months, views_data  = generate_monthly_bar_data()
+    _,      videos_data = generate_monthly_video_data()
 
-    handles = [acc['handle'] for acc in MOCK_ACCOUNTS]
-    colors = [acc['color'] for acc in MOCK_ACCOUNTS]
-
-    views_datasets = json.dumps([
+    views_datasets_str = json.dumps([
         {'label': acc['handle'], 'data': views_data[acc['handle']], 'backgroundColor': acc['color'], 'borderRadius': 5}
         for acc in MOCK_ACCOUNTS
     ])
-    videos_datasets = json.dumps([
+    videos_datasets_str = json.dumps([
         {'label': acc['handle'], 'data': videos_data[acc['handle']], 'backgroundColor': acc['color'], 'borderRadius': 5}
         for acc in MOCK_ACCOUNTS
     ])
 
+    # Revenue source donut HTML (3 side-by-side cards)
+    src_colors = {'Videos': '#FF3B3B', 'Shop Ads': '#A855F7', 'LIVE': '#F59E0B', 'Other': '#7a8090'}
+    donut_cards_html = ''
+    for acc in MOCK_ACCOUNTS:
+        src = REVENUE_SOURCES[acc['handle']]
+        sp_id = f"donut_{acc['handle'].lstrip('@').replace('.','_').replace('-','_')}"
+        legend = ''
+        for label, pct in src.items():
+            if pct > 0:
+                gmv_val = int(acc['gmv'] * pct / 100)
+                legend += f'''<div class="donut-legend-row">
+                    <div class="donut-legend-swatch" style="background:{src_colors.get(label,'#7a8090')};"></div>
+                    <span style="flex:1;">{label}</span>
+                    <strong>{pct}%</strong>
+                    <span style="color:var(--muted);margin-left:0.5rem;">${gmv_val:,}</span>
+                </div>'''
+        donut_cards_html += f'''
+        <div class="donut-card" data-account="{acc['handle']}" id="donut_card_{acc['handle'].lstrip('@').replace('.','_').replace('-','_')}">
+            <div style="font-weight:700;color:{acc['color']};margin-bottom:0.75rem;font-size:0.9rem;">{acc['handle']}</div>
+            <div style="position:relative;height:140px;width:140px;margin:0 auto;">
+                <canvas id="{sp_id}"></canvas>
+            </div>
+            <div class="donut-legend" style="margin-top:0.75rem;">{legend}</div>
+        </div>'''
+
     # Products table
-    product_rows = ''
-    for p in MOCK_PRODUCTS:
-        product_rows += f'''<tr>
+    product_rows_html = ''
+    for i, p in enumerate(MOCK_PRODUCTS):
+        acc_total_gmv = next((a['gmv'] for a in MOCK_ACCOUNTS if a['handle'] == p['account']), 1)
+        pct_of_acct = (p['gmv'] / acc_total_gmv * 100)
+        product_rows_html += f'''<tr class="product-row" data-account="{p['account']}" style="animation-delay:{i*50}ms;">
             <td>
                 <div class="acc-cell">
                     <div class="acc-dot" style="background:{p['color']};"></div>
                     {p['name']}
                 </div>
             </td>
-            <td style="color:var(--muted);">{p['account']}</td>
+            <td><div class="acc-cell"><div class="acc-dot" style="background:{p['color']};"></div>{p['account']}</div></td>
             <td>{p['units']:,}</td>
             <td style="font-weight:600;">${p['gmv']:,}</td>
             <td>{p['commission']}%</td>
+            <td style="color:var(--muted);">{pct_of_acct:.1f}%</td>
         </tr>'''
 
     # Viral videos table
-    viral_rows = ''
-    for v in MOCK_VIRAL_VIDEOS:
-        viral_rows += f'''<tr>
-            <td style="max-width:260px;">{v['title']}</td>
-            <td>
-                <div class="acc-cell">
-                    <div class="acc-dot" style="background:{v['color']};"></div>
-                    {v['account']}
-                </div>
-            </td>
+    viral_rows_html = ''
+    for i, v in enumerate(MOCK_VIRAL_VIDEOS):
+        viral_rows_html += f'''<tr class="viral-row" data-account="{v['account']}" style="animation-delay:{i*50}ms;">
+            <td style="max-width:240px;font-weight:600;">{v['title']}</td>
+            <td><div class="acc-cell"><div class="acc-dot" style="background:{v['color']};"></div>{v['account']}</div></td>
+            <td style="color:var(--accent);font-weight:600;">{fmt_views(v['views_this_month'])}</td>
             <td>{fmt_views(v['total_views'])}</td>
-            <td style="color:var(--teal);font-weight:600;">{fmt_views(v['views_this_month'])}</td>
             <td style="color:var(--muted);">{v['date']}</td>
+            <td style="color:var(--muted);">{v['days_old']}d</td>
+        </tr>'''
+
+    # Viral video count by account
+    viral_by_account = {}
+    for v in MOCK_VIRAL_VIDEOS:
+        viral_by_account[v['account']] = viral_by_account.get(v['account'], 0) + 1
+
+    viral_breakdown = ' &nbsp;&middot;&nbsp; '.join([
+        f'<span style="color:{next(a["color"] for a in MOCK_ACCOUNTS if a["handle"]==h)};font-weight:700;">{h}: {cnt}</span>'
+        for h, cnt in viral_by_account.items()
+    ])
+
+    # Decision metrics table
+    def dm_flag(val, good_thresh, warn_thresh, higher_is_better=True):
+        if higher_is_better:
+            if val >= good_thresh:
+                return 'dm-flag-green'
+            elif val >= warn_thresh:
+                return 'dm-flag-yellow'
+            else:
+                return 'dm-flag-red'
+        else:
+            if val <= good_thresh:
+                return 'dm-flag-green'
+            elif val <= warn_thresh:
+                return 'dm-flag-yellow'
+            else:
+                return 'dm-flag-red'
+
+    dm_rows_html = ''
+    for dm in DECISION_METRICS:
+        # avg views/video: green >2000, yellow >1000, red <1000
+        avg_cls = dm_flag(dm['avg_views_video'], 2000, 1000)
+        # mom views: green >15%, yellow >0%, red <0%
+        mom_cls = dm_flag(dm['mom_views_pct'], 15, 0)
+        mom_arrow = '&#8593;' if dm['mom_views_pct'] >= 0 else '&#8595;'
+        mom_sign  = '+' if dm['mom_views_pct'] >= 0 else ''
+        # avg daily posts: green >15, yellow >5, red <=5
+        post_cls = dm_flag(dm['avg_daily_posts'], 15, 5)
+        # commission per 1k: green >1.3, yellow >0.9, red <0.9
+        comm_cls = dm_flag(dm['commission_per_1k_views'], 1.3, 0.9)
+        # gmv per video: green >20, yellow >10, red <10
+        gmv_v_cls = dm_flag(dm['gmv_per_video'], 20, 10)
+        # viral rate: green >0.3, yellow >0.1, red 0
+        viral_cls = dm_flag(dm['viral_rate'], 0.3, 0.1)
+        dm_rows_html += f'''<tr>
+            <td><div class="acc-cell"><div class="acc-dot" style="background:{dm['color']};"></div><strong>{dm['handle']}</strong></div></td>
+            <td class="{avg_cls}">{dm['avg_views_video']:,}</td>
+            <td class="{mom_cls}">{mom_arrow} {mom_sign}{dm['mom_views_pct']:.1f}%</td>
+            <td class="{post_cls}">{dm['avg_daily_posts']:.1f}/day</td>
+            <td class="{comm_cls}">${dm['commission_per_1k_views']:.2f}/K</td>
+            <td class="{gmv_v_cls}">${dm['gmv_per_video']:.1f}</td>
+            <td class="{viral_cls}">{dm['viral_rate']:.2f}%</td>
         </tr>'''
 
     body = f'''
     <div class="page-header">
         <div class="page-title">Analytics</div>
-        <div class="page-sub">Deep-dive performance across all accounts · 90-day window</div>
+        <div class="page-sub">Deep-dive performance &middot; 90-day window</div>
+    </div>
+
+    <!-- Account filter pills -->
+    <div class="acc-filter" id="accFilter">
+        <button class="acc-filter-btn active" data-account="all">All Accounts</button>
+        <button class="acc-filter-btn" data-account="@trendvault_us" style="--acc-color:#FF3B3B;">@trendvault_us</button>
+        <button class="acc-filter-btn" data-account="@pickoftheday_co" style="--acc-color:#A855F7;">@pickoftheday_co</button>
+        <button class="acc-filter-btn" data-account="@dailyfinds_hub" style="--acc-color:#F59E0B;">@dailyfinds_hub</button>
     </div>
 
     <!-- Section 1: GMV Trend 90d -->
     <div class="panel">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
-            <div class="panel-title" style="margin-bottom:0;">GMV Trend · Last 90 Days</div>
-        </div>
+        <div class="panel-title">GMV Trend &middot; Last 90 Days</div>
         <div class="chart-toggles" id="gmvToggles90">
-            <button class="toggle-btn" data-idx="0" style="color:#00C9A7;border-color:#00C9A7;background:rgba(0,201,167,0.1);">
-                <span class="toggle-dot" style="background:#00C9A7;"></span>@trendvault_us
+            <button class="toggle-btn" data-idx="0" style="color:#FF3B3B;border-color:#FF3B3B;background:rgba(255,59,59,0.1);">
+                <span class="toggle-dot" style="background:#FF3B3B;"></span>@trendvault_us
             </button>
-            <button class="toggle-btn" data-idx="1" style="color:#8B5CF6;border-color:#8B5CF6;background:rgba(139,92,246,0.1);">
-                <span class="toggle-dot" style="background:#8B5CF6;"></span>@pickoftheday_co
+            <button class="toggle-btn" data-idx="1" style="color:#A855F7;border-color:#A855F7;background:rgba(168,85,247,0.1);">
+                <span class="toggle-dot" style="background:#A855F7;"></span>@pickoftheday_co
             </button>
             <button class="toggle-btn" data-idx="2" style="color:#F59E0B;border-color:#F59E0B;background:rgba(245,158,11,0.1);">
                 <span class="toggle-dot" style="background:#F59E0B;"></span>@dailyfinds_hub
             </button>
-            <button class="toggle-btn" data-idx="3" style="color:#E5E7EB;border-color:rgba(229,231,235,0.3);background:rgba(229,231,235,0.05);">
-                <span class="toggle-dot" style="background:#E5E7EB;"></span>Total
+            <button class="toggle-btn" data-idx="3" style="color:#F0F0F0;border-color:rgba(240,240,240,0.3);background:rgba(240,240,240,0.05);">
+                <span class="toggle-dot" style="background:#F0F0F0;"></span>Total
             </button>
         </div>
         <div class="chart-wrap" style="height:280px;"><canvas id="gmv90Chart"></canvas></div>
     </div>
 
-    <!-- Section 2 & 3: Views + Videos bar charts -->
+    <!-- Section 2 & 3: Views + Videos -->
     <div class="two-col">
         <div class="panel">
-            <div class="panel-title">Views per Account · Monthly</div>
+            <div class="panel-title">Views per Account &middot; Monthly</div>
             <div style="position:relative;height:240px;"><canvas id="viewsBarChart"></canvas></div>
         </div>
         <div class="panel">
-            <div class="panel-title">Videos Posted · Monthly</div>
+            <div class="panel-title">Videos Posted &middot; Monthly</div>
             <div style="position:relative;height:240px;"><canvas id="videosBarChart"></canvas></div>
         </div>
     </div>
 
-    <!-- Section 4: Revenue source donut -->
-    <div class="panel" style="max-width:500px;">
-        <div class="panel-title">Revenue Source Breakdown</div>
-        <div style="display:flex;align-items:center;gap:2rem;">
-            <div style="position:relative;height:200px;width:200px;flex-shrink:0;"><canvas id="donutChart"></canvas></div>
-            <div>
-                <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.75rem;">
-                    <div style="width:12px;height:12px;border-radius:2px;background:#00C9A7;"></div>
-                    <div>Videos <strong>78%</strong></div>
-                </div>
-                <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.75rem;">
-                    <div style="width:12px;height:12px;border-radius:2px;background:#8B5CF6;"></div>
-                    <div>Shop Ads <strong>19%</strong></div>
-                </div>
-                <div style="display:flex;align-items:center;gap:0.6rem;">
-                    <div style="width:12px;height:12px;border-radius:2px;background:#F59E0B;"></div>
-                    <div>LIVE <strong>3%</strong></div>
-                </div>
-            </div>
+    <!-- Section 4: Revenue Source per account -->
+    <div class="panel">
+        <div class="panel-title">Revenue Source &middot; Per Account</div>
+        <div class="donut-cards-row" id="donutCardsRow">
+            {donut_cards_html}
         </div>
     </div>
 
     <!-- Section 5: Products -->
     <div class="panel">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
             <div class="panel-title" style="margin-bottom:0;">Products</div>
-            <div style="background:rgba(0,201,167,0.1);border:1px solid rgba(0,201,167,0.2);padding:0.4rem 1rem;border-radius:20px;font-size:0.85rem;">
-                <strong style="color:var(--teal);">47</strong> <span style="color:var(--muted);">unique products this month</span>
+            <div style="background:rgba(255,59,59,0.08);border:1px solid rgba(255,59,59,0.2);padding:0.4rem 1rem;border-radius:20px;font-size:0.85rem;">
+                <strong style="color:var(--accent);">5</strong> <span style="color:var(--muted);">unique products this month</span>
             </div>
         </div>
-        <div class="section-label">Top 3 Hero Products</div>
-        <div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
-            {' '.join([f'''<div style="flex:1;min-width:180px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:1rem;">
-                <div class="acc-cell" style="margin-bottom:0.4rem;">
-                    <div class="acc-dot" style="background:{MOCK_PRODUCTS[i]['color']};"></div>
-                    <div style="font-size:0.75rem;color:var(--muted);">{MOCK_PRODUCTS[i]['account']}</div>
-                </div>
-                <div style="font-size:0.85rem;font-weight:600;margin-bottom:0.5rem;line-height:1.3;">{MOCK_PRODUCTS[i]['name']}</div>
-                <div style="font-size:1.25rem;font-weight:800;color:var(--teal);">${MOCK_PRODUCTS[i]['gmv']:,}</div>
-                <div style="color:var(--muted);font-size:0.78rem;">{MOCK_PRODUCTS[i]['units']} units</div>
-            </div>''' for i in range(3)])}
-        </div>
-        <div class="section-label">All Products</div>
-        <table class="data-table">
+        <table class="data-table" id="productsTable">
             <thead>
-                <tr><th>Product</th><th>Account</th><th>Units</th><th>GMV</th><th>Commission</th></tr>
+                <tr><th>Product</th><th>Account</th><th>Units</th><th>GMV</th><th>Commission</th><th>% of Account GMV</th></tr>
             </thead>
-            <tbody>{product_rows}</tbody>
+            <tbody>{product_rows_html}</tbody>
         </table>
     </div>
 
     <!-- Section 6: Viral Videos -->
     <div class="panel">
-        <div class="kpi-card" style="margin-bottom:1.25rem;">
-            <div class="kpi-number">4</div>
-            <div>
-                <div style="font-weight:700;font-size:1rem;">Viral Videos This Month</div>
-                <div class="kpi-label">Videos with ≥50K views delta</div>
-            </div>
+        <div style="margin-bottom:1.25rem;">
+            <div class="panel-title" style="margin-bottom:0.5rem;">Viral Videos This Month</div>
+            <div style="font-size:0.85rem;color:var(--muted);">{viral_breakdown}</div>
         </div>
-        <table class="data-table">
+        <table class="data-table" id="viralTable">
             <thead>
-                <tr><th>Video</th><th>Account</th><th>Total Views</th><th>Views This Month</th><th>Date</th></tr>
+                <tr><th>Video</th><th>Account</th><th>Views This Month</th><th>Total Views</th><th>Date Posted</th><th>Days Old</th></tr>
             </thead>
-            <tbody>{viral_rows}</tbody>
+            <tbody>{viral_rows_html}</tbody>
+        </table>
+    </div>
+
+    <!-- Section 7: Decision Metrics -->
+    <div class="panel">
+        <div class="panel-title">Decision Metrics &middot; Account Comparison</div>
+        <div style="color:var(--muted);font-size:0.82rem;margin-bottom:1rem;">
+            <span style="color:var(--success);">&#9679;</span> Good &nbsp;
+            <span style="color:var(--warning);">&#9679;</span> Watch &nbsp;
+            <span style="color:var(--critical);">&#9679;</span> Action needed
+        </div>
+        <table class="dm-table">
+            <thead>
+                <tr>
+                    <th>Account</th>
+                    <th>Avg Views/Video</th>
+                    <th>MoM Views %</th>
+                    <th>Posting Consistency</th>
+                    <th>Commission/1K Views</th>
+                    <th>GMV/Video</th>
+                    <th>Viral Rate</th>
+                </tr>
+            </thead>
+            <tbody>{dm_rows_html}</tbody>
         </table>
     </div>
     '''
 
-    extra_js = f'''
-    // GMV 90-day chart
-    const gmv90Chart = new Chart(document.getElementById('gmv90Chart'), {{
-        type: 'line',
-        data: {{
-            labels: {json.dumps(labels90)},
-            datasets: [
-                {{ label: '@trendvault_us', data: {json.dumps(ds90_tv)}, borderColor: '#00C9A7', backgroundColor: 'rgba(0,201,167,0.06)', tension: 0.4, pointRadius: 0, borderWidth: 2 }},
-                {{ label: '@pickoftheday_co', data: {json.dumps(ds90_po)}, borderColor: '#8B5CF6', backgroundColor: 'rgba(139,92,246,0.06)', tension: 0.4, pointRadius: 0, borderWidth: 2 }},
-                {{ label: '@dailyfinds_hub', data: {json.dumps(ds90_dh)}, borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,0.06)', tension: 0.4, pointRadius: 0, borderWidth: 2 }},
-                {{ label: 'Total', data: {json.dumps(ds90_total)}, borderColor: '#E5E7EB', backgroundColor: 'rgba(229,231,235,0.03)', tension: 0.4, pointRadius: 0, borderWidth: 1.5, borderDash: [4,3] }},
-            ]
-        }},
-        options: {{
-            maintainAspectRatio: false,
-            animation: {{ duration: 1000, easing: 'easeInOutQuart' }},
-            interaction: {{ intersect: false, mode: 'index' }},
-            plugins: {{
-                legend: {{ display: false }},
-                tooltip: {{ backgroundColor: '#181b20', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, padding: 10,
-                    callbacks: {{ label: ctx => ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString() }} }}
+    # Build donut init JS
+    donut_init_js = ''
+    for acc in MOCK_ACCOUNTS:
+        src = REVENUE_SOURCES[acc['handle']]
+        sp_id = f"donut_{acc['handle'].lstrip('@').replace('.','_').replace('-','_')}"
+        labels_list = [k for k, v in src.items() if v > 0]
+        data_list   = [v for v in src.values() if v > 0]
+        colors_list = [src_colors.get(k, '#7a8090') for k in labels_list]
+        donut_init_js += f'''
+        new Chart(document.getElementById('{sp_id}').getContext('2d'), {{
+            type: 'doughnut',
+            data: {{
+                labels: {json.dumps(labels_list)},
+                datasets: [{{ data: {json.dumps(data_list)}, backgroundColor: {json.dumps(colors_list)}, borderWidth: 0, hoverOffset: 6 }}]
             }},
-            scales: {{
-                x: {{ ticks: {{ color: '#7a8090', maxTicksLimit: 12 }}, grid: {{ color: 'rgba(255,255,255,0.04)' }} }},
-                y: {{ ticks: {{ color: '#7a8090', callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v) }}, grid: {{ color: 'rgba(255,255,255,0.04)' }} }}
+            options: {{
+                maintainAspectRatio: false,
+                animation: {{ duration: 1200, easing: 'easeInOutQuart' }},
+                plugins: {{
+                    legend: {{ display: false }},
+                    tooltip: {{ backgroundColor: '#111118', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 }}
+                }},
+                cutout: '68%'
             }}
-        }}
-    }});
-
-    document.querySelectorAll('#gmvToggles90 .toggle-btn').forEach(btn => {{
-        btn.addEventListener('click', function() {{
-            const idx = parseInt(this.dataset.idx);
-            const meta = gmv90Chart.getDatasetMeta(idx);
-            meta.hidden = !meta.hidden;
-            this.classList.toggle('off', meta.hidden);
-            gmv90Chart.update();
         }});
-    }});
+        '''
+
+    extra_js = f'''
+    // GMV 90-day area chart
+    var gmv90Chart;
+    (function() {{
+        const canvas = document.getElementById('gmv90Chart');
+        const ctx = canvas.getContext('2d');
+        const H = 280;
+        function mkGrad(r, g, b) {{
+            const gr = ctx.createLinearGradient(0, 0, 0, H);
+            gr.addColorStop(0, 'rgba('+r+','+g+','+b+',0.6)');
+            gr.addColorStop(1, 'rgba('+r+','+g+','+b+',0)');
+            return gr;
+        }}
+        const gTV    = mkGrad(255,59,59);
+        const gPO    = mkGrad(168,85,247);
+        const gDH    = mkGrad(245,158,11);
+        const gTot   = mkGrad(240,240,240);
+
+        gmv90Chart = new Chart(ctx, {{
+            type: 'line',
+            data: {{
+                labels: {json.dumps(labels90)},
+                datasets: [
+                    {{ label: '@trendvault_us',   data: {json.dumps(ds90_tv)},  borderColor: '#FF3B3B', backgroundColor: gTV,  fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }},
+                    {{ label: '@pickoftheday_co', data: {json.dumps(ds90_po)},  borderColor: '#A855F7', backgroundColor: gPO,  fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }},
+                    {{ label: '@dailyfinds_hub',  data: {json.dumps(ds90_dh)},  borderColor: '#F59E0B', backgroundColor: gDH,  fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }},
+                    {{ label: 'Total',            data: {json.dumps(ds90_tot)}, borderColor: '#F0F0F0', backgroundColor: gTot, fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5, borderDash: [4,3] }},
+                ]
+            }},
+            options: {{
+                maintainAspectRatio: false,
+                animation: {{ duration: 1200, easing: 'easeInOutQuart' }},
+                interaction: {{ intersect: false, mode: 'index' }},
+                plugins: {{
+                    legend: {{ display: false }},
+                    tooltip: {{ backgroundColor: '#111118', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, padding: 10,
+                        callbacks: {{ label: ctx => ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString() }} }}
+                }},
+                scales: {{
+                    x: {{ ticks: {{ color: '#7a8090', maxTicksLimit: 12 }}, grid: {{ color: 'rgba(255,255,255,0.04)' }} }},
+                    y: {{ ticks: {{ color: '#7a8090', callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v) }}, grid: {{ color: 'rgba(255,255,255,0.04)' }} }}
+                }}
+            }}
+        }});
+
+        document.querySelectorAll('#gmvToggles90 .toggle-btn').forEach(btn => {{
+            btn.addEventListener('click', function() {{
+                const idx = parseInt(this.dataset.idx);
+                const meta = gmv90Chart.getDatasetMeta(idx);
+                meta.hidden = !meta.hidden;
+                this.classList.toggle('off', meta.hidden);
+                gmv90Chart.update();
+            }});
+        }});
+    }})();
 
     // Views bar chart
-    new Chart(document.getElementById('viewsBarChart'), {{
+    new Chart(document.getElementById('viewsBarChart').getContext('2d'), {{
         type: 'bar',
-        data: {{
-            labels: {json.dumps(months)},
-            datasets: {views_datasets}
-        }},
+        data: {{ labels: {json.dumps(months)}, datasets: {views_datasets_str} }},
         options: {{
             maintainAspectRatio: false,
-            animation: {{ duration: 1000, easing: 'easeInOutQuart' }},
-            plugins: {{
-                legend: {{ labels: {{ color: '#7a8090', font: {{size: 11}}, boxWidth: 10 }} }}
-            }},
+            animation: {{ duration: 1200, easing: 'easeInOutQuart' }},
+            plugins: {{ legend: {{ labels: {{ color: '#7a8090', font: {{size: 11}}, boxWidth: 10 }} }} }},
             scales: {{
-                x: {{ stacked: false, ticks: {{ color: '#7a8090' }}, grid: {{ display: false }} }},
+                x: {{ ticks: {{ color: '#7a8090' }}, grid: {{ display: false }} }},
                 y: {{ ticks: {{ color: '#7a8090', callback: v => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'K' : v }}, grid: {{ color: 'rgba(255,255,255,0.04)' }} }}
             }}
         }}
     }});
 
     // Videos bar chart
-    new Chart(document.getElementById('videosBarChart'), {{
+    new Chart(document.getElementById('videosBarChart').getContext('2d'), {{
         type: 'bar',
-        data: {{
-            labels: {json.dumps(months)},
-            datasets: {videos_datasets}
-        }},
+        data: {{ labels: {json.dumps(months)}, datasets: {videos_datasets_str} }},
         options: {{
             maintainAspectRatio: false,
-            animation: {{ duration: 1000, easing: 'easeInOutQuart' }},
-            plugins: {{
-                legend: {{ labels: {{ color: '#7a8090', font: {{size: 11}}, boxWidth: 10 }} }}
-            }},
+            animation: {{ duration: 1200, easing: 'easeInOutQuart' }},
+            plugins: {{ legend: {{ labels: {{ color: '#7a8090', font: {{size: 11}}, boxWidth: 10 }} }} }},
             scales: {{
-                x: {{ stacked: false, ticks: {{ color: '#7a8090' }}, grid: {{ display: false }} }},
+                x: {{ ticks: {{ color: '#7a8090' }}, grid: {{ display: false }} }},
                 y: {{ ticks: {{ color: '#7a8090' }}, grid: {{ color: 'rgba(255,255,255,0.04)' }} }}
             }}
         }}
     }});
 
-    // Donut chart
-    new Chart(document.getElementById('donutChart'), {{
-        type: 'doughnut',
-        data: {{
-            labels: ['Videos', 'Shop Ads', 'LIVE'],
-            datasets: [{{ data: [78, 19, 3], backgroundColor: ['#00C9A7', '#8B5CF6', '#F59E0B'], borderWidth: 0, hoverOffset: 6 }}]
-        }},
-        options: {{
-            maintainAspectRatio: false,
-            animation: {{ duration: 1000, easing: 'easeInOutQuart' }},
-            plugins: {{ legend: {{ display: false }}, tooltip: {{ backgroundColor: '#181b20', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 }} }},
-            cutout: '68%'
-        }}
+    // Donut charts
+    {donut_init_js}
+
+    // Account filter logic
+    var activeAccFilter = 'all';
+    document.querySelectorAll('#accFilter .acc-filter-btn').forEach(function(btn) {{
+        btn.addEventListener('click', function() {{
+            document.querySelectorAll('#accFilter .acc-filter-btn').forEach(function(b) {{ b.classList.remove('active'); }});
+            this.classList.add('active');
+            activeAccFilter = this.dataset.account;
+            applyAccFilter(activeAccFilter);
+        }});
     }});
+
+    function applyAccFilter(acct) {{
+        // Filter donut cards
+        document.querySelectorAll('.donut-card').forEach(function(el) {{
+            if (acct === 'all' || el.dataset.account === acct) {{
+                el.style.display = '';
+                el.classList.toggle('single-mode', acct !== 'all');
+            }} else {{
+                el.style.display = 'none';
+            }}
+        }});
+        // Filter product rows
+        document.querySelectorAll('.product-row').forEach(function(el) {{
+            el.style.display = (acct === 'all' || el.dataset.account === acct) ? '' : 'none';
+        }});
+        // Filter viral rows
+        document.querySelectorAll('.viral-row').forEach(function(el) {{
+            el.style.display = (acct === 'all' || el.dataset.account === acct) ? '' : 'none';
+        }});
+        // Filter gmv chart datasets
+        if (typeof gmv90Chart !== 'undefined') {{
+            var accountMap = {{'@trendvault_us': 0, '@pickoftheday_co': 1, '@dailyfinds_hub': 2}};
+            if (acct === 'all') {{
+                [0,1,2,3].forEach(function(i) {{
+                    gmv90Chart.getDatasetMeta(i).hidden = false;
+                }});
+            }} else {{
+                var showIdx = accountMap[acct];
+                [0,1,2,3].forEach(function(i) {{
+                    gmv90Chart.getDatasetMeta(i).hidden = (i !== showIdx);
+                }});
+            }}
+            gmv90Chart.update();
+        }}
+    }}
     '''
 
     return page_shell('Analytics', 'analytics', user, unread_count, body, extra_js=extra_js, load_chartjs=True)
@@ -1309,14 +1602,14 @@ def alerts_page():
     all_alerts = alerts_store.get(user.id, [])
 
     if not all_alerts:
-        user.add_alert('👋 Welcome', 'Your real-time performance alerts will appear here.', 'info')
-        user.add_alert('📊 FYP Warning: @dailyfinds_hub', 'FYP score at 67% — below warning threshold of 70%.', 'warning')
+        user.add_alert('Welcome', 'Your real-time performance alerts will appear here.', 'info')
+        user.add_alert('FYP Warning: @dailyfinds_hub', 'FYP score at 67% — below warning threshold of 70%.', 'warning')
         all_alerts = alerts_store.get(user.id, [])
 
     unread_count = len([a for a in all_alerts if not a['is_read']])
 
     alert_items = ''
-    for alert in reversed(all_alerts):
+    for i, alert in enumerate(reversed(all_alerts)):
         level = alert.get('level', 'info')
         is_read = alert.get('is_read', False)
         read_cls = ' read' if is_read else ''
@@ -1324,7 +1617,7 @@ def alerts_page():
         badge_cls = {'critical': 'badge-critical', 'warning': 'badge-warn', 'info': 'badge-info'}.get(level, 'badge-info')
         read_btn = '' if is_read else f'<button onclick="markRead(\'{alert["id"]}\')" style="margin-top:0.6rem;background:none;border:1px solid var(--border);color:var(--muted);padding:0.25rem 0.6rem;border-radius:6px;cursor:pointer;font-size:0.78rem;transition:border-color 0.2s;">Mark read</button>'
         alert_items += f'''
-        <div class="alert-row {level}{read_cls}" id="alert-{alert['id']}">
+        <div class="alert-row {level}{read_cls}" id="alert-{alert['id']}" style="animation-delay:{i*50}ms;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
                 <div style="flex:1;">
                     <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.35rem;">
@@ -1396,7 +1689,6 @@ def settings():
     aw = 'checked' if s.get('alert_warning', True) else ''
     ai = 'checked' if s.get('alert_info', False) else ''
 
-    # Commission rows
     comm_rows = ''
     for acc in MOCK_ACCOUNTS:
         key = acc['handle'].lstrip('@').replace('.', '_')
@@ -1411,6 +1703,14 @@ def settings():
                 name="commission_{key}" value="{val}" style="max-width:120px;">
             <span style="color:var(--muted);font-size:0.85rem;">%</span>
         </div>'''
+
+    color_swatches = ''.join([
+        f'<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.5rem;">'
+        f'<div style="width:14px;height:14px;border-radius:3px;background:{acc["color"]};"></div>'
+        f'<span style="font-size:0.85rem;">{acc["handle"]}</span>'
+        f'<span style="color:var(--muted);font-size:0.78rem;margin-left:auto;">{acc["color"]}</span></div>'
+        for acc in MOCK_ACCOUNTS
+    ])
 
     body = f'''
     <div class="page-header">
@@ -1447,7 +1747,7 @@ def settings():
                 <div class="panel-title">FYP Score Thresholds</div>
                 <div style="color:var(--muted);font-size:0.82rem;margin-bottom:1.5rem;">Set alert trigger levels for FYP score changes</div>
                 <div class="form-group">
-                    <label class="form-label">Good <span style="color:var(--success);">●</span></label>
+                    <label class="form-label">Good <span style="color:var(--success);">&#9679;</span></label>
                     <div class="slider-row">
                         <input type="range" name="fyp_threshold_good" min="50" max="100" value="{fyp_good}"
                             oninput="document.getElementById('vg').textContent=this.value+'%'">
@@ -1455,7 +1755,7 @@ def settings():
                     </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Warning <span style="color:var(--warning);">●</span></label>
+                    <label class="form-label">Warning <span style="color:var(--warning);">&#9679;</span></label>
                     <div class="slider-row">
                         <input type="range" name="fyp_threshold_warn" min="50" max="100" value="{fyp_warn}"
                             oninput="document.getElementById('vw').textContent=this.value+'%'">
@@ -1463,7 +1763,7 @@ def settings():
                     </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Critical <span style="color:var(--critical);">●</span></label>
+                    <label class="form-label">Critical <span style="color:var(--critical);">&#9679;</span></label>
                     <div class="slider-row">
                         <input type="range" name="fyp_threshold_critical" min="50" max="100" value="{fyp_crit}"
                             oninput="document.getElementById('vc').textContent=this.value+'%'">
@@ -1472,14 +1772,14 @@ def settings():
                 </div>
                 <div style="margin-top:2rem;background:rgba(255,255,255,0.02);border-radius:10px;padding:1rem;border:1px solid var(--border);">
                     <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.06em;">Account Colors</div>
-                    {"".join([f'<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.5rem;"><div style="width:14px;height:14px;border-radius:3px;background:{acc["color"]};"></div><span style="font-size:0.85rem;">{acc["handle"]}</span><span style="color:var(--muted);font-size:0.78rem;margin-left:auto;">{acc["color"]}</span></div>' for acc in MOCK_ACCOUNTS])}
+                    {color_swatches}
                 </div>
             </div>
         </div>
 
         <div style="margin-top:0.5rem;display:flex;align-items:center;gap:1rem;">
             <button type="submit" class="btn btn-primary">Save Settings</button>
-            <span id="saveMsg" style="color:var(--success);font-weight:600;font-size:0.9rem;display:none;">✓ Saved</span>
+            <span id="saveMsg" style="color:var(--success);font-weight:600;font-size:0.9rem;display:none;">&#10003; Saved</span>
         </div>
     </form>
     '''
@@ -1498,7 +1798,6 @@ def settings():
             alert_warning: form.alert_warning.checked,
             alert_info: form.alert_info.checked,
         };
-        // Commission rates
         form.querySelectorAll('input[name^="commission_"]').forEach(inp => {
             data[inp.name] = parseFloat(inp.value);
         });
@@ -1524,7 +1823,7 @@ def settings():
 # ---------------------------------------------------------------------------
 @app.route('/health')
 def health():
-    return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat(), 'version': '1.0.0'})
+    return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat(), 'version': '1.1.0'})
 
 
 @app.route('/api/alerts')
@@ -1572,7 +1871,7 @@ def api_settings():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5008))
-    print(f"🚀 Peak Overwatch v1.0 — Spec Rebuild")
-    print(f"📡 Running on port {port}")
-    print(f"👤 Demo: demo@peakoverwatch.com / password123")
+    print(f"Peak Overwatch v1.1 — Rebuild")
+    print(f"Running on port {port}")
+    print(f"Demo: demo@peakoverwatch.com / password123")
     app.run(host='0.0.0.0', port=port, debug=False)
