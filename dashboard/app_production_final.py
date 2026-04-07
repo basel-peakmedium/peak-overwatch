@@ -1205,7 +1205,12 @@ def accounts():
                     <div style="text-align:right;">
                         <div style="font-size:0.68rem;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em;">GMV trend <span style="opacity:0.5;font-size:0.62rem;">click to expand</span></div>
                         <div class="sparkline-wrap" style="cursor:pointer;"
-                             onclick="openSparkModal({labels_30_json}, {gmv_30_json}, '{acc['handle']}', '{acc['color']}', '{acc['color_rgb']}')"
+                             data-spark-labels='{labels_30_json}'
+                             data-spark-gmv='{gmv_30_json}'
+                             data-spark-handle="{acc['handle']}"
+                             data-spark-color="{acc['color']}"
+                             data-spark-rgb="{acc['color_rgb']}"
+                             onclick="openSparkFromEl(this)"
                              title="Click to expand 30-day GMV trend">
                             <canvas id="{sp_id}"></canvas>
                         </div>
@@ -1282,6 +1287,14 @@ def accounts():
     modal_js = '''
     var _sparkModalChart = null;
 
+    function openSparkFromEl(el) {
+        const labels = JSON.parse(el.dataset.sparkLabels);
+        const data = JSON.parse(el.dataset.sparkGmv);
+        const handle = el.dataset.sparkHandle;
+        const color = el.dataset.sparkColor;
+        const rgb = el.dataset.sparkRgb;
+        openSparkModal(labels, data, handle, color, rgb);
+    }
     function openSparkModal(labels, data, handle, color, colorRgb) {
         var modal = document.getElementById('sparkModal');
         var dot = document.getElementById('sparkModalDot');
