@@ -5,7 +5,6 @@ Complete, tested, ready for deployment
 """
 
 from flask import Flask, render_template_string, redirect, request, jsonify, make_response
-from flask_socketio import SocketIO, emit
 import os
 import json
 from datetime import datetime, timedelta
@@ -28,9 +27,6 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
 SESSION_LIFETIME = timedelta(days=7)
 
-# WebSocket
-socketio = SocketIO(app, cors_allowed_origins=os.environ.get('CORS_ALLOWED_ORIGINS', '*'))
-
 # Storage
 users = {}
 sessions = {}
@@ -44,7 +40,6 @@ class User:
         self.password_hash = password_hash
         self.name = name
         self.company = company
-        self.socket_id = None
         self.settings = {
             'fyp_threshold_good': 80,
             'fyp_threshold_warn': 70,
@@ -79,9 +74,6 @@ class User:
             if self.id not in alerts:
                 alerts[self.id] = []
             alerts[self.id].append(alert)
-        
-        if self.socket_id:
-            socketio.emit('new_alert', alert, room=self.socket_id)
         
         return alert
     
@@ -164,30 +156,6 @@ def login_required(f):
         request.user = user
         return f(*args, **kwargs)
     return decorated
-
-# WebSocket
-@socketio.on('connect')
-def handle_connect():
-    token = request.args.get('token')
-    if token and token in sessions:
-        user_id = sessions[token]['user_id']
-        user = next((u for u in users.values() if u.id == user_id), None)
-        if user:
-            user.socket_id = request.sid
-            unread = user.get_unread_alerts()
-            if unread:
-                emit('initial_alerts', unread)
-
-@socketio.on('mark_alert_read')
-def handle_mark_alert_read(data):
-    alert_id = data.get('alert_id')
-    token = request.args.get('token')
-    if token and token in sessions:
-        user_id = sessions[token]['user_id']
-        user = next((u for u in users.values() if u.id == user_id), None)
-        if user and alert_id:
-            if user.mark_alert_read(alert_id):
-                emit('alert_read', {'alert_id': alert_id})
 
 # Routes
 @app.route('/')
@@ -309,11 +277,8 @@ def dashboard():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Peak Overwatch • Dashboard</title>
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-        <link rel="preconnect" href="https://cdn.socket.io" crossorigin>
         <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-        <link rel="dns-prefetch" href="https://cdn.socket.io">
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.min.css" media="print" onload="this.media='all'">
-        <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -481,27 +446,26 @@ def dashboard():
                 }
             });
 
-            const socket = io({ query: { token: getCookie('session_token') } });
-
-            socket.on('new_alert', (alert) => {
-                const toast = document.createElement('div');
-                toast.className = 'toast';
-                toast.innerHTML = `<div style="font-weight:600; margin-bottom:0.35rem;">${alert.title}</div><div style="color:#888; font-size:0.95rem;">${alert.message}</div>`;
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 8000);
-                window.location.reload();
-            });
-
-            socket.on('alert_read', () => window.location.reload());
-
-            function getCookie(name) {
-                const value = `; ${document.cookie}`;
-                const parts = value.split(`; ${name}=`);
-                if (parts.length === 2) return parts.pop().split(';').shift();
-            }
+            // Poll for new alerts every 30 seconds
+            let _lastAlertCount = {{ unread_alerts|length }};
+            setInterval(async () => {
+                try {
+                    const res = await fetch('/api/alerts');
+                    const data = await res.json();
+                    const unread = data.alerts ? data.alerts.filter(a => !a.is_read).length : 0;
+                    if (unread !== _lastAlertCount) {
+                        _lastAlertCount = unread;
+                        window.location.reload();
+                    }
+                } catch (e) {}
+            }, 30000);
 
             function markAlertRead(alertId) {
-                socket.emit('mark_alert_read', { alert_id: alertId });
+                fetch('/api/mark_alert_read', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ alert_id: alertId })
+                }).then(() => window.location.reload());
             }
         </script>
     </body>
@@ -938,27 +902,42 @@ def alerts_page():
             {alert_items if all_alerts else '<p style="color:var(--muted);padding:1rem 0;">No alerts yet.</p>'}
         </div>
     </main>
-    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
     <script>
-        function getCookie(name) {{
-            const value = `; ${{document.cookie}}`;
-            const parts = value.split(`; ${{name}}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
-        }}
-
         function markAllRead() {{
             fetch('/api/mark_alerts_read', {{ method: 'POST' }})
                 .then(r => r.json())
                 .then(d => {{ if (d.success) window.location.reload(); }});
         }}
 
-        const socket = io({{ query: {{ token: getCookie('session_token') }} }});
-        socket.on('new_alert', () => window.location.reload());
-        socket.on('alert_read', () => window.location.reload());
+        // Poll for new alerts every 30 seconds and auto-refresh if count changes
+        let _lastCount = {unread_count};
+        setInterval(async () => {{
+            try {{
+                const res = await fetch('/api/alerts');
+                const data = await res.json();
+                const unread = data.alerts ? data.alerts.filter(a => !a.is_read).length : 0;
+                if (unread !== _lastCount) window.location.reload();
+            }} catch (e) {{}}
+        }}, 30000);
     </script>
 </body>
 </html>'''
 
+
+@app.route('/api/alerts')
+@login_required
+def api_alerts():
+    user = request.user
+    return jsonify({'alerts': alerts.get(user.id, [])})
+
+@app.route('/api/mark_alert_read', methods=['POST'])
+@login_required
+def api_mark_alert_read():
+    user = request.user
+    data = request.json or {}
+    alert_id = data.get('alert_id')
+    success = user.mark_alert_read(alert_id) if alert_id else False
+    return jsonify({'success': success})
 
 @app.route('/api/mark_alerts_read', methods=['POST'])
 @login_required
@@ -1132,5 +1111,5 @@ if __name__ == '__main__':
     print(f"🚀 Peak Overwatch Production v1.0")
     print(f"📡 Running on port {port}")
     print(f"👤 Demo: demo@peakoverwatch.com / password123")
-    print(f"🔔 Real-time monitoring: ACTIVE")
-    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
+    print(f"🔔 Monitoring: ACTIVE (polling-based)")
+    app.run(host='0.0.0.0', port=port, debug=False)
