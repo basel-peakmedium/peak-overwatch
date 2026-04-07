@@ -626,11 +626,53 @@ body {
 .form-input {
     width: 100%; padding: 0.65rem 0.85rem;
     background: rgba(255,255,255,0.04); border: 1px solid var(--border);
-    border-radius: 8px; color: var(--text); font-size: 0.9rem; transition: border-color 0.2s;
+    border-radius: 8px; color: var(--text); font-size: 0.9rem; transition: border-color 0.2s, box-shadow 0.2s;
 }
-.form-input:focus { outline: none; border-color: var(--accent); }
+.form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,59,59,0.15); }
 .form-input[type=number] { -moz-appearance: textfield; }
 .form-input[type=number]::-webkit-inner-spin-button { opacity: 0.3; }
+
+/* Custom select wrapper */
+.select-wrap {
+    position: relative;
+    display: block;
+}
+.select-wrap select.form-input {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 2.25rem;
+    cursor: pointer;
+    background: #1a1a2e;
+}
+.select-wrap select.form-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(255,59,59,0.15);
+}
+.select-wrap::after {
+    content: '▾';
+    position: absolute;
+    right: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255,59,59,0.7);
+    font-size: 0.9rem;
+    pointer-events: none;
+}
+
+/* Custom threshold slide-down */
+.custom-threshold-wrap {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.2s ease;
+    margin-top: 0;
+}
+.custom-threshold-wrap.visible {
+    max-height: 80px;
+    opacity: 1;
+    margin-top: 0.75rem;
+}
 .checkbox-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.4rem 0; cursor: pointer; }
 input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent); }
 .slider-row { display: flex; align-items: center; gap: 1rem; }
@@ -1088,6 +1130,11 @@ def accounts():
     user = request.user
     unread_count = len(user.get_unread_alerts())
 
+    # 30-day GMV data for sparkline modals
+    series_30 = generate_gmv_series(30)
+    gmv_labels_30 = [d['date'] for d in series_30]
+    gmv_data_30 = {acc['handle']: [d[acc['handle']] for d in series_30] for acc in MOCK_ACCOUNTS}
+
     def fyp_badge(score):
         if score >= 80:
             cls = 'badge-good'
@@ -1115,6 +1162,8 @@ def accounts():
         avg_views = int(acc['views'] / max(acc['videos'], 1))
         sp_data = generate_sparkline(acc['handle'])
         sp_id = f"sp_{acc['handle'].lstrip('@').replace('.','_').replace('-','_')}"
+        gmv_30_json = json.dumps(gmv_data_30[acc['handle']])
+        labels_30_json = json.dumps(gmv_labels_30)
         cards_html += f'''
         <div class="account-card">
             <div class="acc-card-bar" style="background:{acc['color']};"></div>
@@ -1154,8 +1203,12 @@ def accounts():
                 <div class="acc-card-footer">
                     {fyp_badge(acc['fyp_score'])}
                     <div style="text-align:right;">
-                        <div style="font-size:0.68rem;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em;">GMV trend</div>
-                        <div class="sparkline-wrap"><canvas id="{sp_id}"></canvas></div>
+                        <div style="font-size:0.68rem;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em;">GMV trend <span style="opacity:0.5;font-size:0.62rem;">click to expand</span></div>
+                        <div class="sparkline-wrap" style="cursor:pointer;"
+                             onclick="openSparkModal({labels_30_json}, {gmv_30_json}, '{acc['handle']}', '{acc['color']}', '{acc['color_rgb']}')"
+                             title="Click to expand 30-day GMV trend">
+                            <canvas id="{sp_id}"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1196,6 +1249,22 @@ def accounts():
             <button onclick="document.getElementById('addAccountModal').style.display='none'" class="btn btn-primary" style="margin-top:1.5rem;width:100%;justify-content:center;">Got it</button>
         </div>
     </div>
+
+    <!-- Sparkline expand modal -->
+    <div id="sparkModal" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;">
+        <div id="sparkModalBackdrop" style="position:absolute;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);"></div>
+        <div id="sparkModalCard" style="position:relative;background:#111118;border:1px solid rgba(255,255,255,0.12);border-radius:18px;padding:1.75rem;max-width:680px;width:90%;z-index:1;">
+            <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.25rem;">
+                <div id="sparkModalDot" style="width:12px;height:12px;border-radius:50%;flex-shrink:0;"></div>
+                <div id="sparkModalTitle" style="font-size:1.1rem;font-weight:800;"></div>
+                <div style="margin-left:auto;font-size:0.75rem;color:var(--muted);">30-day GMV trend</div>
+                <button id="sparkModalClose" style="background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer;line-height:1;padding:0 0 0 0.75rem;">&#215;</button>
+            </div>
+            <div style="position:relative;height:400px;">
+                <canvas id="sparkModalChart"></canvas>
+            </div>
+        </div>
+    </div>
     '''
 
     body = f'''
@@ -1210,7 +1279,104 @@ def accounts():
     <div class="account-cards">{cards_html}</div>
     '''
 
-    return page_shell('Accounts', 'accounts', user, unread_count, body, extra_js=sparkline_inits, load_chartjs=True)
+    modal_js = '''
+    var _sparkModalChart = null;
+
+    function openSparkModal(labels, data, handle, color, colorRgb) {
+        var modal = document.getElementById('sparkModal');
+        var dot = document.getElementById('sparkModalDot');
+        var title = document.getElementById('sparkModalTitle');
+        var card = document.getElementById('sparkModalCard');
+        dot.style.background = color;
+        title.textContent = handle;
+        modal.style.display = 'flex';
+        // animate in
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.92)';
+        card.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                card.style.opacity = '1';
+                card.style.transform = 'scale(1)';
+            });
+        });
+        // destroy previous chart
+        if (_sparkModalChart) { _sparkModalChart.destroy(); _sparkModalChart = null; }
+        var ctx = document.getElementById('sparkModalChart').getContext('2d');
+        var grad = ctx.createLinearGradient(0, 0, 0, 400);
+        grad.addColorStop(0, 'rgba(' + colorRgb + ',0.55)');
+        grad.addColorStop(1, 'rgba(' + colorRgb + ',0)');
+        _sparkModalChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: handle,
+                    data: data,
+                    borderColor: color,
+                    backgroundColor: grad,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: color,
+                    borderWidth: 2.5
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                animation: { duration: 600, easing: 'easeInOutQuart' },
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#0A0A0F',
+                        borderColor: 'rgba(255,255,255,0.12)',
+                        borderWidth: 1,
+                        padding: 12,
+                        callbacks: {
+                            label: function(ctx) { return ' GMV: $' + ctx.parsed.y.toLocaleString(); }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#7a8090', maxTicksLimit: 10, font: { size: 11 } },
+                        grid: { color: 'rgba(255,255,255,0.04)' }
+                    },
+                    y: {
+                        ticks: {
+                            color: '#7a8090',
+                            font: { size: 11 },
+                            callback: function(v) { return '$' + (v >= 1000 ? (v/1000).toFixed(0)+'K' : v); }
+                        },
+                        grid: { color: 'rgba(255,255,255,0.04)' }
+                    }
+                }
+            }
+        });
+    }
+
+    function closeSparkModal() {
+        var card = document.getElementById('sparkModalCard');
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.92)';
+        setTimeout(function() {
+            document.getElementById('sparkModal').style.display = 'none';
+            card.style.transition = '';
+        }, 200);
+    }
+
+    document.getElementById('sparkModalClose').addEventListener('click', closeSparkModal);
+    document.getElementById('sparkModalBackdrop').addEventListener('click', closeSparkModal);
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && document.getElementById('sparkModal').style.display !== 'none') {
+            closeSparkModal();
+        }
+    });
+    '''
+
+    return page_shell('Accounts', 'accounts', user, unread_count, body, extra_js=sparkline_inits + modal_js, load_chartjs=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1788,12 +1954,18 @@ def settings():
                 </div>
                 <div class="form-group">
                     <label class="form-label">GMV Drop Alert</label>
-                    <select class="form-input" name="gmv_drop_alert" style="cursor:pointer;">
-                        <option value="10">Alert if GMV drops 10% in a week</option>
-                        <option value="20" selected>Alert if GMV drops 20% in a week</option>
-                        <option value="30">Alert if GMV drops 30% in a week</option>
-                        <option value="custom">Custom threshold</option>
-                    </select>
+                    <div class="select-wrap">
+                        <select class="form-input" name="gmv_drop_alert" id="gmvDropAlertSelect">
+                            <option value="10">Alert if GMV drops 10% in a week</option>
+                            <option value="20" selected>Alert if GMV drops 20% in a week</option>
+                            <option value="30">Alert if GMV drops 30% in a week</option>
+                            <option value="custom">Custom threshold...</option>
+                        </select>
+                    </div>
+                    <div class="custom-threshold-wrap" id="customThresholdWrap">
+                        <label class="form-label" style="margin-bottom:0.4rem;">Custom threshold (%)</label>
+                        <input class="form-input" type="number" name="gmv_drop_custom" id="gmvDropCustom" min="1" max="99" step="1" placeholder="Enter custom % (e.g. 25)">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Monthly GMV Growth Target</label>
@@ -1824,9 +1996,23 @@ def settings():
     '''
 
     extra_js = '''
+    // Custom threshold toggle
+    var gmvDropSelect = document.getElementById('gmvDropAlertSelect');
+    var customWrap = document.getElementById('customThresholdWrap');
+    function toggleCustomThreshold() {
+        if (gmvDropSelect.value === 'custom') {
+            customWrap.classList.add('visible');
+        } else {
+            customWrap.classList.remove('visible');
+        }
+    }
+    gmvDropSelect.addEventListener('change', toggleCustomThreshold);
+    toggleCustomThreshold(); // run on load
+
     document.getElementById('settingsForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const form = e.target;
+        const dropVal = form.gmv_drop_alert.value;
         const data = {
             notification_email: form.notification_email.value,
             alert_email: form.alert_email.checked,
@@ -1834,7 +2020,8 @@ def settings():
             alert_warning: form.alert_warning.checked,
             alert_info: form.alert_info.checked,
             gmv_monthly_target: parseFloat(form.gmv_monthly_target.value) || 30000,
-            gmv_drop_alert: form.gmv_drop_alert.value,
+            gmv_drop_alert: dropVal,
+            gmv_drop_custom: dropVal === 'custom' ? (parseFloat(form.gmv_drop_custom.value) || null) : null,
             gmv_growth_target: parseFloat(form.gmv_growth_target.value) || 15,
             views_growth_target: parseFloat(form.views_growth_target.value) || 20,
         };
@@ -1950,11 +2137,13 @@ def team():
                 </div>
                 <div>
                     <label class="form-label">Role</label>
-                    <select class="form-input" id="inviteRole" style="cursor:pointer;">
-                        <option value="Manager">Manager</option>
-                        <option value="Viewer">Viewer</option>
-                        <option value="Owner">Owner</option>
-                    </select>
+                    <div class="select-wrap">
+                        <select class="form-input" id="inviteRole">
+                            <option value="Manager">Manager</option>
+                            <option value="Viewer">Viewer</option>
+                            <option value="Owner">Owner</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             <div style="margin-top:0.85rem;display:flex;align-items:center;gap:0.75rem;">
@@ -2040,7 +2229,7 @@ def api_settings():
     allowed = [
         'notification_email', 'alert_email', 'alert_critical', 'alert_warning', 'alert_info',
         'commission_trendvault_us', 'commission_pickoftheday_co', 'commission_dailyfinds_hub',
-        'gmv_monthly_target', 'gmv_drop_alert', 'gmv_growth_target', 'views_growth_target',
+        'gmv_monthly_target', 'gmv_drop_alert', 'gmv_drop_custom', 'gmv_growth_target', 'views_growth_target',
     ]
     for key in allowed:
         if key in data:
